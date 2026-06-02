@@ -1,0 +1,6 @@
+[mcp_servers.korean-law]
+command = "korean-law-mcp"
+enabled = true
+
+[mcp_servers.korean-law.env]
+LAW_OC = "luludaniel"

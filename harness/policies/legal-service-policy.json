@@ -1,0 +1,37 @@
+{
+  "name": "general-legal-service-policy",
+  "audiences": ["general_user", "business", "professional"],
+  "excluded_contexts": [
+    "school",
+    "education_institution",
+    "classroom",
+    "student_assignment",
+    "teacher_feedback",
+    "academic_grading"
+  ],
+  "required_disclaimers": [
+    "Legal information and drafting support only; not a substitute for licensed attorney advice.",
+    "Verify deadlines, jurisdiction, facts, and current law before relying on the output."
+  ],
+  "primary_source_preference": [
+    "statutes",
+    "enforcement decrees",
+    "enforcement rules",
+    "precedents",
+    "administrative interpretations",
+    "agency decisions"
+  ],
+  "privacy_rules": [
+    "Redact resident registration numbers, account numbers, access tokens, and unrelated third-party personal data.",
+    "Summarize sensitive facts when full identifiers are not needed.",
+    "Do not request unnecessary sensitive personal data."
+  ],
+  "escalation_rules": [
+    "Criminal defense strategy",
+    "Imminent filing deadlines",
+    "Litigation tactics",
+    "Regulated financial advice",
+    "High-value transactions",
+    "Disputed facts or incomplete evidence"
+  ]
+}

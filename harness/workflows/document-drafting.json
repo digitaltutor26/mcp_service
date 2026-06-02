@@ -1,0 +1,23 @@
+{
+  "id": "document_drafting",
+  "title": "Legal Document Drafting",
+  "mcp_tools": [
+    "chain_full_research",
+    "search_law",
+    "get_law_text",
+    "chain_procedure_detail",
+    "verify_citations"
+  ],
+  "outputs": [
+    "draft plan",
+    "missing fact checklist",
+    "authority and procedure notes",
+    "structured legal document draft",
+    "filing or delivery checklist"
+  ],
+  "blocked_contexts": [
+    "school",
+    "education_institution",
+    "classroom"
+  ]
+}

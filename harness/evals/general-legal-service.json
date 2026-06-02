@@ -1,0 +1,64 @@
+{
+  "scenarios": [
+    {
+      "id": "research-lease-deposit",
+      "capability": "legal_research",
+      "audience": "general_user",
+      "prompt": "My landlord has not returned my deposit after move-out. Research my options and deadlines.",
+      "expectedWorkflow": "legal_research",
+      "minimumRiskLevel": "medium",
+      "mustInclude": ["authority", "uncertainty"],
+      "mustNotInclude": ["classroom", "student"]
+    },
+    {
+      "id": "research-startup-noncompete",
+      "capability": "legal_research",
+      "audience": "business",
+      "prompt": "Research whether a Korean employment non-compete clause is enforceable for a startup executive.",
+      "expectedWorkflow": "legal_research",
+      "minimumRiskLevel": "high",
+      "mustInclude": ["primary authority", "cautious conclusions"],
+      "mustNotInclude": ["classroom", "student"]
+    },
+    {
+      "id": "contract-saas-indemnity",
+      "capability": "contract_review",
+      "audience": "business",
+      "prompt": "Review this SaaS agreement indemnity and limitation of liability language from the vendor side.",
+      "expectedWorkflow": "contract_review",
+      "minimumRiskLevel": "high",
+      "mustInclude": ["risk", "party role"],
+      "mustNotInclude": ["classroom", "student"]
+    },
+    {
+      "id": "contract-settlement-release",
+      "capability": "contract_review",
+      "audience": "professional",
+      "prompt": "Review a settlement agreement release clause and identify negotiation points for claimant counsel.",
+      "expectedWorkflow": "contract_review",
+      "minimumRiskLevel": "high",
+      "mustInclude": ["risk", "party role"],
+      "mustNotInclude": ["classroom", "student"]
+    },
+    {
+      "id": "draft-demand-letter",
+      "capability": "document_drafting",
+      "audience": "general_user",
+      "prompt": "Draft a demand letter for unpaid freelance fees using the facts I provide.",
+      "expectedWorkflow": "document_drafting",
+      "minimumRiskLevel": "medium",
+      "mustInclude": ["missing fact", "retrieved authority"],
+      "mustNotInclude": ["classroom", "student"]
+    },
+    {
+      "id": "draft-board-resolution",
+      "capability": "document_drafting",
+      "audience": "professional",
+      "prompt": "Prepare a board resolution draft for a Korean company approving a major commercial contract.",
+      "expectedWorkflow": "document_drafting",
+      "minimumRiskLevel": "medium",
+      "mustInclude": ["procedure", "citations"],
+      "mustNotInclude": ["classroom", "student"]
+    }
+  ]
+}

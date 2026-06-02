@@ -1,0 +1,23 @@
+{
+  "id": "legal_research",
+  "title": "Legal Research Memo",
+  "mcp_tools": [
+    "chain_full_research",
+    "search_law",
+    "get_law_text",
+    "search_decisions",
+    "get_decision_text"
+  ],
+  "outputs": [
+    "issue summary",
+    "primary authority list",
+    "application analysis",
+    "uncertainty and verification gaps",
+    "next actions"
+  ],
+  "blocked_contexts": [
+    "school",
+    "education_institution",
+    "classroom"
+  ]
+}

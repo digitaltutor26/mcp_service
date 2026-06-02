@@ -1,0 +1,22 @@
+{
+  "id": "contract_review",
+  "title": "Contract Risk Review",
+  "mcp_tools": [
+    "chain_document_review",
+    "search_decisions",
+    "get_decision_text",
+    "verify_citations"
+  ],
+  "outputs": [
+    "review assumptions",
+    "redaction warning",
+    "clause risk table",
+    "negotiation points",
+    "fallback clause language"
+  ],
+  "blocked_contexts": [
+    "school",
+    "education_institution",
+    "classroom"
+  ]
+}
