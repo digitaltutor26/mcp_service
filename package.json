@@ -9,7 +9,8 @@
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
     "eval": "tsx src/evaluate.ts",
-    "test": "npm run build && npm run eval && vitest run"
+    "test:web": "npm --prefix web run build",
+    "test": "npm run build && npm run eval && vitest run && npm run test:web"
   },
   "keywords": [
     "mcp",
