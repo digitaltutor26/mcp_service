@@ -21,6 +21,16 @@ This service provides legal information and document drafting support only. It d
 - Citation verifier for statute and case source sufficiency
 - Expert review required flags in workflow output and UI
 
+## Repository Layout
+
+```text
+src/        Express backend, workflows, services, and types
+harness/    JSON workflow, policy, and eval metadata
+web/        React MVP UI
+```
+
+The original `/legal-harness` artifact structure is not fully created yet. See `todolist.md` for the gap analysis and next-work plan.
+
 ## Backend API
 
 Run from the repository root:
