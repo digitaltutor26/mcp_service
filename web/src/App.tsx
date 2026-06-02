@@ -1,121 +1,339 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useMemo, useState, type ChangeEvent } from 'react'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+type TabId = 'legal-research' | 'contract-review' | 'document-draft'
+
+interface ReportPolicy {
+  informationalOnly: boolean
+  draftOnly: boolean
+  prohibitsFinalJudgment: boolean
+  prohibitsGuaranteedOutcome: boolean
+  prohibitsDefinitiveIllegalityFinding: boolean
+  requiresExpertReview: boolean
+  disclaimers: string[]
+  warnings: string[]
+}
+
+interface AuthoritySearch {
+  provider: string
+  notices: string[]
+  manualReviewRequired: boolean
+}
+
+interface LegalReport {
+  allowed: boolean
+  reason?: string
+  workflow?: string
+  summary?: string
+  nextSteps?: string[]
+  reviewScope?: Record<string, string>
+  draftScope?: Record<string, string>
+  mockResult?: Record<string, unknown>
+  authoritySearch?: AuthoritySearch
+  policy?: ReportPolicy
+  expertReviewRequired?: boolean
+}
+
+interface TabConfig {
+  id: TabId
+  label: string
+  endpoint: string
+  placeholder: string
+  buttonLabel: string
+  buildBody: (text: string) => Record<string, string>
+}
+
+const API_BASE = 'http://localhost:3000'
+
+const tabs = [
+  {
+    id: 'legal-research',
+    label: '법률 질문',
+    endpoint: '/api/legal-research',
+    placeholder: '예: 프리랜서 용역대금을 지급받지 못한 경우 검토할 수 있는 민사 조치를 알려주세요.',
+    buttonLabel: '법률 리서치 실행',
+    buildBody: (text: string) => ({ question: text }),
+  },
+  {
+    id: 'contract-review',
+    label: '계약서 검토',
+    endpoint: '/api/contract-review',
+    placeholder: '검토할 계약 조항이나 계약서 본문을 붙여넣으세요. 예: 공급자가 언제든 해지할 수 있고 고객은 남은 대금을 모두 부담한다는 조항',
+    buttonLabel: '계약서 검토 실행',
+    buildBody: (text: string) => ({
+      contractText: text,
+      partyRole: 'requesting party',
+      concern: 'general risk review',
+    }),
+  },
+  {
+    id: 'document-draft',
+    label: '문서 초안',
+    endpoint: '/api/document-draft',
+    placeholder: '작성할 문서의 목적과 사실관계를 입력하세요. 예: 미지급 용역대금 지급을 요청하는 내용증명 초안',
+    buttonLabel: '문서 초안 생성',
+    buildBody: (text: string) => ({
+      documentType: 'legal document draft',
+      facts: text,
+      requestedOutcome: 'draft preparation',
+    }),
+  },
+] satisfies [TabConfig, ...TabConfig[]]
+
+function formatKey(key: string) {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (first: string) => first.toUpperCase())
+}
+
+function stringifyValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => stringifyValue(item)).join(', ')
+  }
+
+  if (value !== null && typeof value === 'object') {
+    return JSON.stringify(value, null, 2)
+  }
+
+  return String(value ?? '')
+}
+
+function ExpertBadge({ report }: { report: LegalReport }) {
+  const required =
+    report.expertReviewRequired ?? report.policy?.requiresExpertReview ?? report.authoritySearch?.manualReviewRequired ?? true
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className={required ? 'expert-badge required' : 'expert-badge optional'}>
+      <span className="badge-dot" />
+      <strong>{required ? '전문가 검토 필요' : '전문가 검토 선택'}</strong>
+      <span>
+        {required
+          ? '출처, 사실관계, 기한 확인 후 사용하세요.'
+          : '현재 입력 기준으로 중대한 위험 신호는 제한적입니다.'}
+      </span>
+    </div>
+  )
+}
+
+function ReportView({ activeTab, report }: { activeTab: TabConfig; report: LegalReport }) {
+  if (!report.allowed) {
+    return (
+      <section className="report-panel blocked">
+        <div className="report-header">
+          <p className="eyebrow">요청 제한</p>
+          <h2>처리할 수 없는 맥락입니다</h2>
         </div>
+        <p className="muted">사유: {report.reason ?? '정책상 제한된 요청'}</p>
+        {report.policy ? <ExpertBadge report={report} /> : null}
+      </section>
+    )
+  }
+
+  const isDraft = activeTab.id === 'document-draft' || Boolean(report.policy?.draftOnly)
+
+  return (
+    <section className="report-panel">
+      <div className="report-header">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <p className="eyebrow">{activeTab.label} 리포트</p>
+          <h2>{isDraft ? '초안 리포트' : '정보 제공 리포트'}</h2>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+        <span className="status-pill">{report.authoritySearch?.provider ?? 'mock'} provider</span>
+      </div>
 
-      <div className="ticks"></div>
+      <ExpertBadge report={report} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
+      <div className="report-section">
+        <h3>요약</h3>
+        <p>{report.summary ?? '요청이 처리되었습니다.'}</p>
+      </div>
+
+      {report.reviewScope ? <KeyValueSection title="검토 범위" values={report.reviewScope} /> : null}
+      {report.draftScope ? <KeyValueSection title="초안 범위" values={report.draftScope} /> : null}
+
+      {report.mockResult ? (
+        <div className="report-section">
+          <h3>분석 항목</h3>
+          <div className="result-grid">
+            {Object.entries(report.mockResult).map(([key, value]) => (
+              <div className="result-item" key={key}>
+                <span>{formatKey(key)}</span>
+                <p>{stringifyValue(value)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {report.nextSteps?.length ? (
+        <div className="report-section">
+          <h3>다음 조치</h3>
+          <ol className="steps-list">
+            {report.nextSteps.map((step: string) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+
+      {report.authoritySearch?.notices.length ? (
+        <div className="report-section notice-section">
+          <h3>출처 확인</h3>
           <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
+            {report.authoritySearch.notices.map((notice: string) => (
+              <li key={notice}>{notice}</li>
+            ))}
           </ul>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
+      ) : null}
+
+      {report.policy?.warnings.length ? (
+        <div className="report-section warning-section">
+          <h3>주의 사항</h3>
           <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
+            {report.policy.warnings.map((warning: string) => (
+              <li key={warning}>{warning}</li>
+            ))}
           </ul>
         </div>
-      </section>
+      ) : null}
+    </section>
+  )
+}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+function KeyValueSection({ title, values }: { title: string; values: Record<string, string> }) {
+  return (
+    <div className="report-section">
+      <h3>{title}</h3>
+      <dl className="key-values">
+        {Object.entries(values).map(([key, value]) => (
+          <div key={key}>
+            <dt>{formatKey(key)}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  )
+}
+
+function App() {
+  const [activeTabId, setActiveTabId] = useState<TabId>('legal-research')
+  const [inputs, setInputs] = useState<Record<TabId, string>>({
+    'legal-research': '',
+    'contract-review': '',
+    'document-draft': '',
+  })
+  const [report, setReport] = useState<LegalReport | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const activeTab = useMemo<TabConfig>(
+    () => tabs.find((tab: TabConfig) => tab.id === activeTabId) ?? tabs[0],
+    [activeTabId],
+  )
+  const activeInput = inputs[activeTab.id]
+
+  async function runWorkflow() {
+    const text = activeInput.trim()
+    if (!text) {
+      setError('검토할 내용을 입력해 주세요.')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setReport(null)
+
+    try {
+      const response = await fetch(`${API_BASE}${activeTab.endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activeTab.buildBody(text)),
+      })
+      const data = (await response.json()) as LegalReport
+
+      if (!response.ok && response.status !== 422) {
+        throw new Error(data.reason ?? '요청 처리 중 오류가 발생했습니다.')
+      }
+
+      setReport(data)
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : '요청 처리 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="app-header">
+        <div>
+          <p className="eyebrow">Legal MCP Harness</p>
+          <h1>법률 서비스 MVP</h1>
+        </div>
+        <p className="header-copy">
+          법률 자문이 아닌 정보 제공과 문서 초안 작성 보조를 위한 하네스 화면입니다.
+        </p>
+      </header>
+
+      <section className="workspace">
+        <div className="tabs" role="tablist" aria-label="법률 서비스 기능">
+          {tabs.map((tab: TabConfig) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab.id === tab.id}
+              className={activeTab.id === tab.id ? 'tab active' : 'tab'}
+              onClick={() => {
+                setActiveTabId(tab.id)
+                setError(null)
+                setReport(null)
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="work-grid">
+          <section className="input-panel">
+            <label htmlFor="workflow-input">{activeTab.label}</label>
+            <textarea
+              id="workflow-input"
+              value={activeInput}
+              placeholder={activeTab.placeholder}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                setInputs((current: Record<TabId, string>) => ({
+                  ...current,
+                  [activeTab.id]: event.target.value,
+                }))
+              }
+            />
+            <div className="input-actions">
+              <span>{activeInput.trim().length}자</span>
+              <button type="button" onClick={runWorkflow} disabled={loading}>
+                {loading ? '실행 중' : activeTab.buttonLabel}
+              </button>
+            </div>
+            {error ? <p className="error-message">{error}</p> : null}
+          </section>
+
+          <section className="output-panel">
+            {report ? (
+              <ReportView activeTab={activeTab} report={report} />
+            ) : (
+              <div className="empty-state">
+                <p className="eyebrow">리포트 대기</p>
+                <h2>입력 후 실행하면 결과가 표시됩니다</h2>
+                <p>요약, 분석 항목, 출처 확인, 전문가 검토 필요 여부를 나눠 보여줍니다.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      </section>
+    </main>
   )
 }
 
