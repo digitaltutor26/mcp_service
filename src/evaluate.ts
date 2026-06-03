@@ -25,8 +25,8 @@ function assertHarnessShape(): void {
   ]);
   assert.deepEqual(LEGAL_SERVICE_HARNESS.audiences, ["general_user", "business", "professional"]);
   assert.equal(LEGAL_SERVICE_HARNESS.workflows.length, 3);
-  assert.ok(LEGAL_SERVICE_HARNESS.policy.excludedContexts.includes("school"));
-  assert.ok(LEGAL_SERVICE_HARNESS.policy.excludedContexts.includes("education_institution"));
+  assert.ok(LEGAL_SERVICE_HARNESS.policy.excludedContexts.includes("학교"));
+  assert.ok(LEGAL_SERVICE_HARNESS.policy.excludedContexts.includes("교육기관"));
 
   for (const workflow of LEGAL_SERVICE_HARNESS.workflows) {
     assert.equal(workflow.audience.includes("general_user"), true);
@@ -88,7 +88,7 @@ function assertScenarios(): void {
 }
 
 function assertExcludedContextGuard(): void {
-  assert.equal(isExcludedContext("Need help with a classroom assignment rubric."), true);
+  assert.equal(isExcludedContext("수업 과제 평가 기준을 만들어 주세요."), true);
   assert.equal(isExcludedContext("Review this supplier agreement for indemnity risk."), false);
 }
 

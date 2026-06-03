@@ -69,7 +69,7 @@ function manualFailure(
 function mockSuccess<TData>(
   operation: LegalLookupOperation,
   data: TData,
-  message = "mock 검색 결과",
+  message = "개발용 모의 검색 결과",
 ): LegalLookupResult<TData> {
   return {
     ok: true,
@@ -77,7 +77,7 @@ function mockSuccess<TData>(
     operation,
     data,
     message,
-    notices: ["개발용 mock provider 결과입니다.", "실제 법령 및 판례는 수동 확인 필요"],
+    notices: ["개발용 모의 검색 제공자 결과입니다.", "실제 법령 및 판례는 수동 확인 필요"],
     manualReviewRequired: true,
   };
 }
@@ -139,7 +139,7 @@ class MockLegalProvider implements LegalSearchProvider {
     return mockSuccess("getLawArticle", {
       lawName,
       articleNo,
-      text: "개발용 mock 조문입니다. 실제 조문은 korean-law provider 또는 법제처 원문으로 확인해야 합니다.",
+      text: "개발용 모의 조문입니다. 실제 조문은 한국 법령 검색 제공자 또는 법제처 원문으로 확인해야 합니다.",
     });
   }
 }
@@ -161,7 +161,7 @@ class KoreanLawCliProvider implements LegalSearchProvider {
 
   private async callCli(operation: LegalLookupOperation, params: Record<string, string>): Promise<LegalLookupResult> {
     if (!process.env.LAW_OC) {
-      return manualFailure("korean-law", operation, new Error("LAW_OC is required for korean-law provider"));
+      return manualFailure("korean-law", operation, new Error("한국 법령 검색 제공자를 사용하려면 LAW_OC 환경변수가 필요합니다."));
     }
 
     try {
@@ -187,7 +187,7 @@ class KoreanLawCliProvider implements LegalSearchProvider {
         operation,
         data,
         message: "검색 완료",
-        notices: ["korean-law CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."],
+        notices: ["한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."],
         manualReviewRequired: true,
       };
     } catch (error) {

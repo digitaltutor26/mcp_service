@@ -119,6 +119,18 @@ function stringifyValue(value: unknown): string {
   return String(value ?? '')
 }
 
+function formatProvider(provider?: string): string {
+  if (provider === 'mock') {
+    return '개발용 모의 검색'
+  }
+
+  if (provider === 'korean-law') {
+    return '한국 법령 검색'
+  }
+
+  return provider ?? '개발용 모의 검색'
+}
+
 function ExpertBadge({ report }: { report: LegalReport }) {
   const required =
     report.expertReviewRequired ?? report.policy?.requiresExpertReview ?? report.authoritySearch?.manualReviewRequired ?? true
@@ -159,7 +171,7 @@ function ReportView({ activeTab, report }: { activeTab: TabConfig; report: Legal
           <p className="eyebrow">{activeTab.label} 리포트</p>
           <h2>{isDraft ? '초안 리포트' : '정보 제공 리포트'}</h2>
         </div>
-        <span className="status-pill">{report.authoritySearch?.provider ?? 'mock'} provider</span>
+        <span className="status-pill">{formatProvider(report.authoritySearch?.provider)} 제공자</span>
       </div>
 
       <ExpertBadge report={report} />
@@ -290,8 +302,8 @@ function App() {
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Legal MCP Harness</p>
-          <h1>법률 서비스 MVP</h1>
+          <p className="eyebrow">법률 MCP 하네스</p>
+          <h1>법률 서비스 최소 기능 제품</h1>
         </div>
         <p className="header-copy">
           법률 자문이 아닌 정보 제공과 문서 초안 작성 보조를 위한 하네스 화면입니다.

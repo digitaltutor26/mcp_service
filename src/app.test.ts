@@ -65,7 +65,7 @@ describe("legal MCP harness API", () => {
     const response = await fetch(`${baseUrl}/api/evaluate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt: "Help me prepare a classroom assignment about contracts." }),
+      body: JSON.stringify({ prompt: "수업 과제로 계약법 자료를 정리해 주세요." }),
     });
     const body = (await response.json()) as { allowed: boolean; reason: string };
 
@@ -78,7 +78,7 @@ describe("legal MCP harness API", () => {
     const response = await fetch(`${baseUrl}/api/evaluate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt: "Review this supplier agreement limitation of liability clause." }),
+      body: JSON.stringify({ prompt: "공급계약의 책임제한 조항을 검토해 주세요." }),
     });
     const body = (await response.json()) as { allowed: boolean; capability: string };
 
@@ -91,7 +91,7 @@ describe("legal MCP harness API", () => {
     const response = await fetch(`${baseUrl}/api/legal-research`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question: "What remedies are available for unpaid freelance fees?" }),
+      body: JSON.stringify({ question: "미지급 프리랜서 용역대금에 대해 어떤 조치를 검토할 수 있나요?" }),
     });
     const body = (await response.json()) as {
       allowed: boolean;
@@ -104,7 +104,7 @@ describe("legal MCP harness API", () => {
     expect(response.status).toBe(200);
     expect(body.allowed).toBe(true);
     expect(body.workflow).toBe("legal_research");
-    expect(body.mockResult.issue).toContain("unpaid freelance fees");
+    expect(body.mockResult.issue).toContain("프리랜서 용역대금");
     expect(body.mockResult.likelySources.length).toBeGreaterThan(0);
     expect(body.authoritySearch.provider).toBe("mock");
     expect(body.authoritySearch.manualReviewRequired).toBe(true);
@@ -117,7 +117,7 @@ describe("legal MCP harness API", () => {
     const response = await fetch(`${baseUrl}/api/contract-review`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ contractText: "Only text without party role" }),
+      body: JSON.stringify({ contractText: "당사자 지위 없이 계약서 본문만 입력" }),
     });
     const body = (await response.json()) as { error: string };
 
@@ -130,8 +130,8 @@ describe("legal MCP harness API", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        contractText: "Supplier may terminate at any time and customer remains liable for all fees.",
-        partyRole: "customer",
+        contractText: "공급자는 언제든 계약을 해지할 수 있고 고객은 남은 대금을 모두 부담합니다.",
+        partyRole: "고객",
       }),
     });
     const body = (await response.json()) as {
@@ -155,9 +155,9 @@ describe("legal MCP harness API", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        documentType: "demand letter",
-        facts: "Client has not paid invoice 2026-001 after two reminders.",
-        recipient: "client",
+        documentType: "지급 요청서",
+        facts: "거래처가 두 차례 독촉 후에도 청구서 2026-001 금액을 지급하지 않았습니다.",
+        recipient: "거래처",
       }),
     });
     const body = (await response.json()) as {

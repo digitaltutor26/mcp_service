@@ -1,6 +1,6 @@
 {
   "id": "legal_research",
-  "title": "Legal Research Memo",
+  "title": "법률 리서치 메모",
   "mcp_tools": [
     "chain_full_research",
     "search_law",
@@ -9,15 +9,15 @@
     "get_decision_text"
   ],
   "outputs": [
-    "issue summary",
-    "primary authority list",
-    "application analysis",
-    "uncertainty and verification gaps",
-    "next actions"
+    "쟁점 요약",
+    "주요 법적 근거 목록",
+    "사안 적용 분석",
+    "불확실성 및 검증 공백",
+    "다음 조치"
   ],
   "blocked_contexts": [
-    "school",
-    "education_institution",
-    "classroom"
+    "학교",
+    "교육기관",
+    "수업"
   ]
 }

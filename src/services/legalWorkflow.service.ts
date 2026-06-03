@@ -37,7 +37,7 @@ export const legalWorkflowService: LegalWorkflowMockService = {
         ? ["계약상 채무불이행 검토", "민사 청구 절차 검토", "대금 지급 관련 판례 검색"]
         : ["관련 법령 검색", "판례 검색", "행정해석 검색"],
       limitations: [
-        "현재 결과는 개발용 mock 검색을 포함할 수 있으며 실제 법령 원문 확인이 필요합니다.",
+        "현재 결과는 개발용 모의 검색을 포함할 수 있으며 실제 법령 원문 확인이 필요합니다.",
         "이 결과는 법률 정보 제공용이며 최종 법률 판단을 대체하지 않습니다.",
       ],
     };
@@ -45,7 +45,17 @@ export const legalWorkflowService: LegalWorkflowMockService = {
 
   createContractReviewMock(input: ContractReviewInput) {
     const text = [input.contractText, input.concern].filter(Boolean).join(" ");
-    const highRisk = containsAny(text, ["terminate at any time", "all fees", "unlimited", "indemnify", "손해배상"]);
+    const highRisk = containsAny(text, [
+      "terminate at any time",
+      "all fees",
+      "unlimited",
+      "indemnify",
+      "언제든",
+      "남은 대금",
+      "모두 부담",
+      "무제한",
+      "손해배상",
+    ]);
 
     return {
       riskLevel: highRisk ? "high" : "medium",

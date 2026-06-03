@@ -1,6 +1,6 @@
 {
   "id": "document_drafting",
-  "title": "Legal Document Drafting",
+  "title": "법률 문서 초안 작성",
   "mcp_tools": [
     "chain_full_research",
     "search_law",
@@ -9,15 +9,15 @@
     "verify_citations"
   ],
   "outputs": [
-    "draft plan",
-    "missing fact checklist",
-    "authority and procedure notes",
-    "structured legal document draft",
-    "filing or delivery checklist"
+    "초안 작성 계획",
+    "누락 사실 체크리스트",
+    "근거 및 절차 확인 사항",
+    "구조화된 법률 문서 초안",
+    "제출 또는 발송 전 체크리스트"
   ],
   "blocked_contexts": [
-    "school",
-    "education_institution",
-    "classroom"
+    "학교",
+    "교육기관",
+    "수업"
   ]
 }

@@ -39,11 +39,25 @@ const documentDraftRequestSchema = z.object({
 function inferCapability(prompt: string): CapabilityId {
   const normalized = prompt.toLowerCase();
 
-  if (normalized.includes("contract") || normalized.includes("agreement") || normalized.includes("clause")) {
+  if (
+    normalized.includes("contract") ||
+    normalized.includes("agreement") ||
+    normalized.includes("clause") ||
+    normalized.includes("계약") ||
+    normalized.includes("조항")
+  ) {
     return "contract_review";
   }
 
-  if (normalized.includes("draft") || normalized.includes("letter") || normalized.includes("resolution")) {
+  if (
+    normalized.includes("draft") ||
+    normalized.includes("letter") ||
+    normalized.includes("resolution") ||
+    normalized.includes("초안") ||
+    normalized.includes("문서") ||
+    normalized.includes("내용증명") ||
+    normalized.includes("의사록")
+  ) {
     return "document_drafting";
   }
 
