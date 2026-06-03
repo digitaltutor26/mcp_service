@@ -45,6 +45,23 @@ interface TabConfig {
 
 const API_BASE = 'http://localhost:3000'
 
+const fieldLabels: Record<string, string> = {
+  issue: '쟁점',
+  likelySources: '확인할 근거',
+  limitations: '한계',
+  riskLevel: '위험 수준',
+  detectedIssues: '탐지된 쟁점',
+  suggestedReviewPoints: '검토 포인트',
+  sections: '초안 구성',
+  placeholders: '확인 필요 항목',
+  deliveryChecklist: '발송 전 체크리스트',
+  partyRole: '당사자 지위',
+  concern: '검토 관심사항',
+  documentType: '문서 유형',
+  recipient: '수신인',
+  requestedOutcome: '요청 결과',
+}
+
 const tabs = [
   {
     id: 'legal-research',
@@ -62,8 +79,8 @@ const tabs = [
     buttonLabel: '계약서 검토 실행',
     buildBody: (text: string) => ({
       contractText: text,
-      partyRole: 'requesting party',
-      concern: 'general risk review',
+      partyRole: '검토 요청자',
+      concern: '일반 위험 검토',
     }),
   },
   {
@@ -73,14 +90,18 @@ const tabs = [
     placeholder: '작성할 문서의 목적과 사실관계를 입력하세요. 예: 미지급 용역대금 지급을 요청하는 내용증명 초안',
     buttonLabel: '문서 초안 생성',
     buildBody: (text: string) => ({
-      documentType: 'legal document draft',
+      documentType: '법률 문서 초안',
       facts: text,
-      requestedOutcome: 'draft preparation',
+      requestedOutcome: '초안 작성',
     }),
   },
 ] satisfies [TabConfig, ...TabConfig[]]
 
 function formatKey(key: string) {
+  if (fieldLabels[key]) {
+    return fieldLabels[key]
+  }
+
   return key
     .replace(/([A-Z])/g, ' $1')
     .replace(/^./, (first: string) => first.toUpperCase())

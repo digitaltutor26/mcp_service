@@ -20,23 +20,23 @@ export async function documentDraftWorkflow(input: DocumentDraftInput): Promise<
   return {
     allowed: true,
     workflow: "document_drafting",
-    summary: "Document draft request accepted. MCP authority and procedure lookup is not implemented yet.",
+    summary: "문서 초안 요청이 접수되었습니다. 현재는 제공된 사실관계를 기준으로 초안 작성 보조 결과를 생성합니다.",
     draftScope: {
       documentType: input.documentType,
-      recipient: input.recipient ?? "unspecified",
-      requestedOutcome: input.requestedOutcome ?? "unspecified",
+      recipient: input.recipient ?? "미지정",
+      requestedOutcome: input.requestedOutcome ?? "미지정",
     },
     nextSteps: [
-      "Confirm mandatory facts and attachments.",
-      "Insert placeholders for missing facts instead of inventing details.",
-      "Verify citations and procedure before use.",
+      "필수 사실관계와 첨부자료를 확인합니다.",
+      "누락된 정보는 임의로 작성하지 않고 자리표시자로 남깁니다.",
+      "사용 전 인용과 절차 요건을 확인합니다.",
     ],
     mockResult,
     authoritySearch,
     policy: createPolicyResult({
       draftOnly: true,
       requiresExpertReview: true,
-      warnings: ["Generated text is a draft only and should be reviewed before filing, signing, or sending."],
+      warnings: ["생성된 문서는 초안이며 제출, 서명, 발송 전에 전문가 검토가 필요합니다."],
     }),
   };
 }

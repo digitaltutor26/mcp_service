@@ -19,8 +19,8 @@ export const LEGAL_SERVICE_HARNESS: HarnessDefinition = {
       "academic_grading",
     ],
     requiredDisclaimers: [
-      "The response is legal information and drafting support, not a substitute for advice from a licensed attorney.",
-      "The user should verify deadlines, jurisdiction, facts, and current law before relying on the output.",
+      "이 응답은 법률 정보 제공 및 문서 초안 작성 보조이며, 변호사 등 전문가의 자문을 대체하지 않습니다.",
+      "기한, 관할, 사실관계, 최신 법령은 사용 전에 반드시 확인해야 합니다.",
     ],
     prohibitedBehaviors: [
       "Do not present uncertain legal conclusions as guaranteed outcomes.",

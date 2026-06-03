@@ -22,7 +22,7 @@ export function createPolicyResult(options: {
     requiresExpertReview: options.requiresExpertReview,
     disclaimers: LEGAL_SERVICE_HARNESS.policy.requiredDisclaimers,
     warnings: [
-      "This result must not be treated as a final legal judgment, a guaranteed litigation outcome, or a definitive finding of illegality.",
+      "이 결과는 최종 법률 판단, 승소 보장, 위법 단정으로 사용할 수 없습니다.",
       ...(options.warnings ?? []),
     ],
   };

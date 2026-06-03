@@ -20,17 +20,17 @@ export async function legalResearchWorkflow(input: LegalResearchInput): Promise<
   return {
     allowed: true,
     workflow: "legal_research",
-    summary: "Legal research request accepted. MCP authority lookup is not implemented yet.",
+    summary: "법률 리서치 요청이 접수되었습니다. 현재는 개발용 검색 결과를 기준으로 정보 제공 리포트를 생성합니다.",
     nextSteps: [
-      "Identify controlling statutes and decisions.",
-      "Separate cited authority from inference.",
-      "Flag missing facts, deadlines, and jurisdiction issues.",
+      "관련 법령과 판례 후보를 확인합니다.",
+      "확인된 출처와 추론 내용을 구분합니다.",
+      "누락된 사실관계, 기한, 관할 쟁점을 표시합니다.",
     ],
     mockResult,
     authoritySearch,
     policy: createPolicyResult({
       requiresExpertReview: true,
-      warnings: ["Expert review is recommended before relying on research for filing, negotiation, or litigation strategy."],
+      warnings: ["신청, 협상, 소송 전략에 활용하기 전 전문가 검토가 필요합니다."],
     }),
   };
 }

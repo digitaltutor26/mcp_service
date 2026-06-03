@@ -20,21 +20,21 @@ export async function contractReviewWorkflow(input: ContractReviewInput): Promis
   return {
     allowed: true,
     workflow: "contract_review",
-    summary: "Contract review request accepted. MCP clause analysis is not implemented yet.",
+    summary: "계약서 검토 요청이 접수되었습니다. 현재는 개발용 규칙 기반 결과로 주요 위험을 정리합니다.",
     reviewScope: {
       partyRole: input.partyRole,
-      concern: input.concern ?? "general risk review",
+      concern: input.concern ?? "일반 위험 검토",
     },
     nextSteps: [
-      "Identify one-sided or ambiguous clauses.",
-      "Rank legal and business risks.",
-      "Prepare negotiation points and fallback language as draft suggestions only.",
+      "일방적이거나 모호한 조항을 식별합니다.",
+      "법률 및 거래상 위험을 우선순위로 정리합니다.",
+      "협상 쟁점과 대체 문구를 초안 제안으로 준비합니다.",
     ],
     mockResult,
     authoritySearch,
     policy: createPolicyResult({
       requiresExpertReview: true,
-      warnings: ["Contract changes should be reviewed by a qualified professional before signature or delivery."],
+      warnings: ["계약 문구 변경안은 서명 또는 전달 전에 전문가 검토가 필요합니다."],
     }),
   };
 }

@@ -1,5 +1,7 @@
 # Legal MCP Harness
 
+[한국어 README](README.ko.md)
+
 Legal MCP Harness is an Express and React MVP for legal research, contract review, and legal document draft assistance.
 
 The product scope is general users, businesses, and professional users. It excludes school, education institution, classroom, student assignment, and similar education contexts.

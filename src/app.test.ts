@@ -146,6 +146,7 @@ describe("legal MCP harness API", () => {
     expect(body.workflow).toBe("contract_review");
     expect(body.mockResult.riskLevel).toBe("high");
     expect(body.mockResult.detectedIssues.length).toBeGreaterThan(0);
+    expect(body.mockResult.detectedIssues[0]).toContain("위험");
     expect(body.policy.requiresExpertReview).toBe(true);
   });
 
@@ -169,7 +170,7 @@ describe("legal MCP harness API", () => {
     expect(response.status).toBe(200);
     expect(body.allowed).toBe(true);
     expect(body.workflow).toBe("document_drafting");
-    expect(body.mockResult.sections).toContain("requested action");
+    expect(body.mockResult.sections).toContain("요청 사항");
     expect(body.mockResult.placeholders.length).toBeGreaterThan(0);
     expect(body.policy.draftOnly).toBe(true);
   });
