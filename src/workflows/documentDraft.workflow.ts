@@ -1,5 +1,6 @@
 import { legalWorkflowService } from "../services/legalWorkflow.service.js";
 import { mcpLegalService } from "../services/mcpLegal.service.js";
+import { createComplianceResult, mergePolicyWithCompliance } from "../services/workflowCompliance.service.js";
 import type { DocumentDraftInput, DocumentDraftWorkflowOutput } from "../types/workflow.types.js";
 import { createPolicyResult, hasExcludedEducationContext } from "./policy.js";
 
@@ -16,6 +17,32 @@ export async function documentDraftWorkflow(input: DocumentDraftInput): Promise<
 
   const mockResult = legalWorkflowService.createDocumentDraftMock(input);
   const authoritySearch = await mcpLegalService.draftDocumentAuthorities(input);
+  const nextSteps = [
+    "필수 사실관계와 첨부자료를 확인합니다.",
+    "누락된 정보는 임의로 작성하지 않고 자리표시자로 남깁니다.",
+    "사용 전 인용과 절차 요건을 확인합니다.",
+  ];
+  const compliance = createComplianceResult({
+    authoritySearch,
+    textParts: [
+      input.documentType,
+      input.facts,
+      input.recipient ?? "미지정",
+      input.requestedOutcome ?? "미지정",
+      ...mockResult.sections,
+      ...mockResult.placeholders,
+      ...mockResult.deliveryChecklist,
+      ...nextSteps,
+    ],
+    baseWarnings: ["생성된 문서는 초안이며 제출, 서명, 발송 전에 전문가 검토가 필요합니다."],
+  });
+  const policy = mergePolicyWithCompliance(
+    createPolicyResult({
+      draftOnly: true,
+      requiresExpertReview: true,
+    }),
+    compliance,
+  );
 
   return {
     allowed: true,
@@ -26,18 +53,12 @@ export async function documentDraftWorkflow(input: DocumentDraftInput): Promise<
       recipient: input.recipient ?? "미지정",
       requestedOutcome: input.requestedOutcome ?? "미지정",
     },
-    nextSteps: [
-      "필수 사실관계와 첨부자료를 확인합니다.",
-      "누락된 정보는 임의로 작성하지 않고 자리표시자로 남깁니다.",
-      "사용 전 인용과 절차 요건을 확인합니다.",
-    ],
+    nextSteps,
     mockResult,
     authoritySearch,
-    policy: createPolicyResult({
-      draftOnly: true,
-      requiresExpertReview: true,
-      warnings: ["생성된 문서는 초안이며 제출, 서명, 발송 전에 전문가 검토가 필요합니다."],
-    }),
+    safetyReview: compliance.safetyReview,
+    citationVerification: compliance.citationVerification,
+    policy,
   };
 }
 

@@ -98,6 +98,7 @@ describe("legal MCP harness API", () => {
       workflow: string;
       mockResult: { issue: string; likelySources: string[] };
       authoritySearch: { provider: string; manualReviewRequired: boolean };
+      citationVerification: { limitations: string[]; blocksDefinitiveAnalysis: boolean };
       policy: { informationalOnly: boolean; requiresExpertReview: boolean; prohibitsGuaranteedOutcome: boolean };
     };
 
@@ -108,6 +109,8 @@ describe("legal MCP harness API", () => {
     expect(body.mockResult.likelySources.length).toBeGreaterThan(0);
     expect(body.authoritySearch.provider).toBe("mock");
     expect(body.authoritySearch.manualReviewRequired).toBe(true);
+    expect(body.citationVerification.limitations).toContain("출처 확인 필요");
+    expect(body.citationVerification.blocksDefinitiveAnalysis).toBe(true);
     expect(body.policy.informationalOnly).toBe(true);
     expect(body.policy.requiresExpertReview).toBe(true);
     expect(body.policy.prohibitsGuaranteedOutcome).toBe(true);
@@ -138,6 +141,7 @@ describe("legal MCP harness API", () => {
       allowed: boolean;
       workflow: string;
       mockResult: { riskLevel: string; detectedIssues: string[] };
+      citationVerification: { limitations: string[] };
       policy: { requiresExpertReview: boolean };
     };
 
@@ -147,6 +151,7 @@ describe("legal MCP harness API", () => {
     expect(body.mockResult.riskLevel).toBe("high");
     expect(body.mockResult.detectedIssues.length).toBeGreaterThan(0);
     expect(body.mockResult.detectedIssues[0]).toContain("위험");
+    expect(body.citationVerification.limitations).toContain("출처 확인 필요");
     expect(body.policy.requiresExpertReview).toBe(true);
   });
 
@@ -164,6 +169,8 @@ describe("legal MCP harness API", () => {
       allowed: boolean;
       workflow: string;
       mockResult: { sections: string[]; placeholders: string[] };
+      safetyReview: { expertReviewRequired: boolean };
+      citationVerification: { sourceSufficiency: string };
       policy: { draftOnly: boolean };
     };
 
@@ -172,6 +179,8 @@ describe("legal MCP harness API", () => {
     expect(body.workflow).toBe("document_drafting");
     expect(body.mockResult.sections).toContain("요청 사항");
     expect(body.mockResult.placeholders.length).toBeGreaterThan(0);
+    expect(body.safetyReview.expertReviewRequired).toBe(false);
+    expect(body.citationVerification.sourceSufficiency).toBe("partial");
     expect(body.policy.draftOnly).toBe(true);
   });
 

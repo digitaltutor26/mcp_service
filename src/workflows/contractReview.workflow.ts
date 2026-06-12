@@ -1,5 +1,6 @@
 import { legalWorkflowService } from "../services/legalWorkflow.service.js";
 import { mcpLegalService } from "../services/mcpLegal.service.js";
+import { createComplianceResult, mergePolicyWithCompliance } from "../services/workflowCompliance.service.js";
 import type { ContractReviewInput, ContractReviewWorkflowOutput } from "../types/workflow.types.js";
 import { createPolicyResult, hasExcludedEducationContext } from "./policy.js";
 
@@ -16,6 +17,30 @@ export async function contractReviewWorkflow(input: ContractReviewInput): Promis
 
   const mockResult = legalWorkflowService.createContractReviewMock(input);
   const authoritySearch = await mcpLegalService.reviewContractAuthorities(input);
+  const nextSteps = [
+    "일방적이거나 모호한 조항을 식별합니다.",
+    "법률 및 거래상 위험을 우선순위로 정리합니다.",
+    "협상 쟁점과 대체 문구를 초안 제안으로 준비합니다.",
+  ];
+  const compliance = createComplianceResult({
+    authoritySearch,
+    textParts: [
+      input.contractText,
+      input.partyRole,
+      input.concern ?? "일반 위험 검토",
+      mockResult.riskLevel,
+      ...mockResult.detectedIssues,
+      ...mockResult.suggestedReviewPoints,
+      ...nextSteps,
+    ],
+    baseWarnings: ["계약 문구 변경안은 서명 또는 전달 전에 전문가 검토가 필요합니다."],
+  });
+  const policy = mergePolicyWithCompliance(
+    createPolicyResult({
+      requiresExpertReview: true,
+    }),
+    compliance,
+  );
 
   return {
     allowed: true,
@@ -25,17 +50,12 @@ export async function contractReviewWorkflow(input: ContractReviewInput): Promis
       partyRole: input.partyRole,
       concern: input.concern ?? "일반 위험 검토",
     },
-    nextSteps: [
-      "일방적이거나 모호한 조항을 식별합니다.",
-      "법률 및 거래상 위험을 우선순위로 정리합니다.",
-      "협상 쟁점과 대체 문구를 초안 제안으로 준비합니다.",
-    ],
+    nextSteps,
     mockResult,
     authoritySearch,
-    policy: createPolicyResult({
-      requiresExpertReview: true,
-      warnings: ["계약 문구 변경안은 서명 또는 전달 전에 전문가 검토가 필요합니다."],
-    }),
+    safetyReview: compliance.safetyReview,
+    citationVerification: compliance.citationVerification,
+    policy,
   };
 }
 

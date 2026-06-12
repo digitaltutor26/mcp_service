@@ -145,21 +145,24 @@ class MockLegalProvider implements LegalSearchProvider {
 }
 
 class KoreanLawCliProvider implements LegalSearchProvider {
-  private readonly command = "korean-law-mcp";
+  private readonly command = "korean-law";
 
   async searchLaw(query: string): Promise<LegalLookupResult> {
-    return this.callCli("searchLaw", { query });
+    return this.callTool("searchLaw", ["search_law", "--query", query]);
   }
 
   async searchPrecedents(query: string): Promise<LegalLookupResult> {
-    return this.callCli("searchPrecedents", { query });
+    return this.callTool("searchPrecedents", ["search_precedents", "--query", query]);
   }
 
   async getLawArticle(lawName: string, articleNo: string): Promise<LegalLookupResult> {
-    return this.callCli("getLawArticle", { lawName, articleNo });
+    return this.callNaturalQuery("getLawArticle", `${lawName} ${articleNo}`);
   }
 
-  private async callCli(operation: LegalLookupOperation, params: Record<string, string>): Promise<LegalLookupResult> {
+  private async callTool(
+    operation: LegalLookupOperation,
+    args: readonly string[],
+  ): Promise<LegalLookupResult> {
     if (!process.env.LAW_OC) {
       return manualFailure("korean-law", operation, new Error("한국 법령 검색 제공자를 사용하려면 LAW_OC 환경변수가 필요합니다."));
     }
@@ -167,7 +170,7 @@ class KoreanLawCliProvider implements LegalSearchProvider {
     try {
       const { stdout } = await execFileAsync(
         this.command,
-        ["--tool", operation, "--json", JSON.stringify(params)],
+        [...args],
         {
           env: {
             ...process.env,
@@ -180,14 +183,56 @@ class KoreanLawCliProvider implements LegalSearchProvider {
 
       const trimmed = stdout.trim();
       const data = trimmed.length > 0 ? parseCliOutput(trimmed) : null;
+      const ok = trimmed.length > 0 && !isCliError(data);
 
       return {
-        ok: true,
+        ok,
         provider: "korean-law",
         operation,
         data,
-        message: "검색 완료",
-        notices: ["한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."],
+        message: ok ? "검색 완료" : "검색 실패",
+        notices: ok
+          ? ["한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."]
+          : ["검색 실패", "수동 확인 필요"],
+        manualReviewRequired: true,
+      };
+    } catch (error) {
+      return manualFailure("korean-law", operation, error);
+    }
+  }
+
+  private async callNaturalQuery(operation: LegalLookupOperation, query: string): Promise<LegalLookupResult> {
+    if (!process.env.LAW_OC) {
+      return manualFailure("korean-law", operation, new Error("한국 법령 검색 제공자를 사용하려면 LAW_OC 환경변수가 필요합니다."));
+    }
+
+    try {
+      const { stdout } = await execFileAsync(
+        this.command,
+        ["query", query, "--json"],
+        {
+          env: {
+            ...process.env,
+            LAW_OC: process.env.LAW_OC,
+          },
+          timeout: 15_000,
+          maxBuffer: 1024 * 1024,
+        },
+      );
+
+      const trimmed = stdout.trim();
+      const data = trimmed.length > 0 ? parseCliOutput(trimmed) : null;
+      const ok = trimmed.length > 0 && !isCliError(data);
+
+      return {
+        ok,
+        provider: "korean-law",
+        operation,
+        data,
+        message: ok ? "검색 완료" : "검색 실패",
+        notices: ok
+          ? ["한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."]
+          : ["검색 실패", "수동 확인 필요"],
         manualReviewRequired: true,
       };
     } catch (error) {
@@ -202,6 +247,15 @@ function parseCliOutput(stdout: string): unknown {
   } catch {
     return { raw: stdout };
   }
+}
+
+function isCliError(data: unknown): boolean {
+  return Boolean(
+    data &&
+    typeof data === "object" &&
+    "isError" in data &&
+    (data as { readonly isError?: unknown }).isError === true
+  );
 }
 
 function createProvider(provider: LegalProvider): LegalSearchProvider {

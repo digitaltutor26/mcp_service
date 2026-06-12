@@ -19,6 +19,7 @@
   - `korean-law`
 - 단정적 법률 표현을 완화하는 안전 필터
 - 법령/판례 출처 충분성을 확인하는 인용 검증기
+- 워크플로 응답의 안전 검토 및 인용 검증 결과 표시
 - API 응답과 UI에 전문가 검토 필요 여부 표시
 
 ## 저장소 구조
@@ -94,7 +95,7 @@ LAW_OC=
 
 ```text
 LEGAL_PROVIDER=mock       개발용 결정론적 데이터를 사용합니다.
-LEGAL_PROVIDER=korean-law korean-law-mcp CLI를 child_process로 호출합니다.
+LEGAL_PROVIDER=korean-law korean-law CLI를 child_process로 호출합니다.
 ```
 
 `LEGAL_PROVIDER=korean-law`를 사용할 때는 `LAW_OC` 값이 필요합니다.
@@ -130,7 +131,8 @@ vitest run
 
 ## 현재 한계
 
-- 실제 `korean-law-mcp` CLI 호출 형식은 live 통합 검증이 아직 필요합니다.
+- 실제 `korean-law` CLI 호출은 `scripts/verify-korean-law-provider.mjs`로 live 통합 검증이 필요합니다.
+- 현재 환경에서 live 검증은 외부 API fetch 실패가 발생할 수 있으며, 이 경우 워크플로는 `검색 실패`, `수동 확인 필요`를 반환해야 합니다.
 - 프론트엔드는 최소 기능 UI에서 수동 API 호출을 수행하며, 자동 브라우저 e2e 테스트는 아직 없습니다.
 - 생성되는 문서 결과는 초안으로만 사용해야 하며 제출, 서명, 발송 전 전문가 검토가 필요합니다.
 

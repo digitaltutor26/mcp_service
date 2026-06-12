@@ -50,6 +50,26 @@ export interface LegalAuthoritySearchOutput {
   readonly manualReviewRequired: boolean;
 }
 
+export interface WorkflowSafetyReview {
+  readonly changed: boolean;
+  readonly expertReviewRequired: boolean;
+  readonly detections: readonly {
+    readonly phrase: string;
+    readonly category: string;
+    readonly riskLevel: "medium" | "high";
+  }[];
+}
+
+export interface WorkflowCitationVerification {
+  readonly sourceSufficiency: "sufficient" | "partial" | "insufficient";
+  readonly limitations: readonly string[];
+  readonly blocksDefinitiveAnalysis: boolean;
+  readonly missingFields: {
+    readonly legalAuthorities: readonly string[];
+    readonly caseAuthorities: readonly string[];
+  };
+}
+
 export interface BlockedWorkflowOutput {
   readonly allowed: false;
   readonly reason: "excluded_education_context";
@@ -67,6 +87,8 @@ export interface LegalResearchOutput {
     readonly limitations: readonly string[];
   };
   readonly authoritySearch: LegalAuthoritySearchOutput;
+  readonly safetyReview: WorkflowSafetyReview;
+  readonly citationVerification: WorkflowCitationVerification;
   readonly policy: LegalWorkflowPolicy;
 }
 
@@ -85,6 +107,8 @@ export interface ContractReviewOutput {
     readonly suggestedReviewPoints: readonly string[];
   };
   readonly authoritySearch: LegalAuthoritySearchOutput;
+  readonly safetyReview: WorkflowSafetyReview;
+  readonly citationVerification: WorkflowCitationVerification;
   readonly policy: LegalWorkflowPolicy;
 }
 
@@ -104,6 +128,8 @@ export interface DocumentDraftOutput {
     readonly deliveryChecklist: readonly string[];
   };
   readonly authoritySearch: LegalAuthoritySearchOutput;
+  readonly safetyReview: WorkflowSafetyReview;
+  readonly citationVerification: WorkflowCitationVerification;
   readonly policy: LegalWorkflowPolicy;
 }
 

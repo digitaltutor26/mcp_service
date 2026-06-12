@@ -28,6 +28,7 @@ describe("mcpLegalService providers", () => {
       expect(result.message).toBe("검색 실패");
       expect(result.notices).toContain("검색 실패");
       expect(result.notices).toContain("수동 확인 필요");
+      expect(result.error).toContain("LAW_OC 환경변수");
       expect(result.manualReviewRequired).toBe(true);
     } finally {
       if (originalLawOc === undefined) {

@@ -20,6 +20,22 @@ interface AuthoritySearch {
   manualReviewRequired: boolean
 }
 
+interface SafetyReview {
+  changed: boolean
+  expertReviewRequired: boolean
+  detections: {
+    phrase: string
+    category: string
+    riskLevel: 'medium' | 'high'
+  }[]
+}
+
+interface CitationVerification {
+  sourceSufficiency: 'sufficient' | 'partial' | 'insufficient'
+  limitations: string[]
+  blocksDefinitiveAnalysis: boolean
+}
+
 interface LegalReport {
   allowed: boolean
   reason?: string
@@ -30,6 +46,8 @@ interface LegalReport {
   draftScope?: Record<string, string>
   mockResult?: Record<string, unknown>
   authoritySearch?: AuthoritySearch
+  safetyReview?: SafetyReview
+  citationVerification?: CitationVerification
   policy?: ReportPolicy
   expertReviewRequired?: boolean
 }
@@ -131,6 +149,18 @@ function formatProvider(provider?: string): string {
   return provider ?? '개발용 모의 검색'
 }
 
+function formatSourceSufficiency(value: CitationVerification['sourceSufficiency']): string {
+  if (value === 'sufficient') {
+    return '충분'
+  }
+
+  if (value === 'partial') {
+    return '일부 확인'
+  }
+
+  return '부족'
+}
+
 function ExpertBadge({ report }: { report: LegalReport }) {
   const required =
     report.expertReviewRequired ?? report.policy?.requiresExpertReview ?? report.authoritySearch?.manualReviewRequired ?? true
@@ -217,6 +247,39 @@ function ReportView({ activeTab, report }: { activeTab: TabConfig; report: Legal
               <li key={notice}>{notice}</li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {report.citationVerification ? (
+        <div className="report-section notice-section">
+          <h3>인용 검증</h3>
+          <p>출처 충분성: {formatSourceSufficiency(report.citationVerification.sourceSufficiency)}</p>
+          {report.citationVerification.blocksDefinitiveAnalysis ? (
+            <p>근거가 부족한 단정적 분석은 제한됩니다.</p>
+          ) : null}
+          {report.citationVerification.limitations.length ? (
+            <ul>
+              {report.citationVerification.limitations.map((limitation) => (
+                <li key={limitation}>{limitation}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {report.safetyReview ? (
+        <div className="report-section">
+          <h3>안전 검토</h3>
+          <p>{report.safetyReview.detections.length ? '위험 표현이 감지되었습니다.' : '단정적 위험 표현은 감지되지 않았습니다.'}</p>
+          {report.safetyReview.detections.length ? (
+            <ul>
+              {report.safetyReview.detections.map((detection) => (
+                <li key={`${detection.phrase}-${detection.category}`}>
+                  {detection.phrase} · {detection.riskLevel === 'high' ? '고위험' : '중위험'}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 

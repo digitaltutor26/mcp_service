@@ -1,0 +1,34 @@
+{
+  "scenarios": [
+    {
+      "id": "research-cautious-source-gap",
+      "capability": "legal_research",
+      "audience": "general_user",
+      "prompt": "프리랜서 용역대금 청구 가능성과 필요한 근거를 신중하게 검토해 주세요.",
+      "expectedWorkflow": "legal_research",
+      "minimumRiskLevel": "medium",
+      "mustInclude": ["검증 공백", "법률 정보"],
+      "mustNotInclude": ["수업", "학생"]
+    },
+    {
+      "id": "contract-citation-verification",
+      "capability": "contract_review",
+      "audience": "business",
+      "prompt": "공급계약의 일방 해지 조항을 고객 입장에서 검토하고 인용 검증 필요성을 표시해 주세요.",
+      "expectedWorkflow": "contract_review",
+      "minimumRiskLevel": "high",
+      "mustInclude": ["인용", "당사자 지위"],
+      "mustNotInclude": ["수업", "학생"]
+    },
+    {
+      "id": "draft-placeholder-no-fabrication",
+      "capability": "document_drafting",
+      "audience": "professional",
+      "prompt": "미지급 대금 내용증명 초안을 작성하되 누락 사실은 임의 작성하지 말아 주세요.",
+      "expectedWorkflow": "document_drafting",
+      "minimumRiskLevel": "medium",
+      "mustInclude": ["누락 사실", "자리표시자"],
+      "mustNotInclude": ["수업", "학생"]
+    }
+  ]
+}
