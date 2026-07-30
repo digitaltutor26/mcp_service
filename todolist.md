@@ -81,7 +81,7 @@
 
 ### `/legal-harness/mcp_servers/korean_law_mcp`
 
-상태: 부분 구현.
+상태: 완료 (2026-07-30, PR #1).
 
 현재 대응 구조:
 
@@ -92,16 +92,22 @@
   - `searchLaw(query)`
   - `searchPrecedents(query)`
   - `getLawArticle(lawName, articleNo)`
+  - `researchAuthorities(question)` — 자연어 질문을 `query --json`(`chain_full_research`)로 라우팅
+- `src/services/koreanLawParser.service.ts`가 CLI 텍스트 출력을 구조화된 인용
+  데이터로 변환합니다. 실제 CLI 응답을 `src/services/fixtures/`에 고정해
+  회귀 테스트로 검증합니다.
+- `legal-harness/mcp_servers/korean_law_mcp/README.md`에 검증된 CLI 계약(출력
+  형식, 자연어 질문 라우팅 규칙, 실패 표기, API 키 노출 주의)을 문서화했습니다.
 
-빠진 항목:
+완료된 항목:
 
-- `/legal-harness/mcp_servers/korean_law_mcp` 아래 전용 MCP 서버 설정 또는 adapter 산출물
-- 실제 `korean-law-mcp` CLI 호출 형식 live 검증
+- `/legal-harness/mcp_servers/korean_law_mcp/README.md` 추가 및 검증된 CLI 계약 반영.
+- 실제 `LAW_OC` 키로 live CLI 호출 검증 완료. 자연어 질문을 `search_law`에 그대로
+  넘기면 법제처 API의 AND 키워드 검색 특성상 거의 항상 실패한다는 것을 확인하고
+  `query --json` 경로로 전환.
+- 판례 결과의 `링크:` 필드에 포함된 API 키(`OC=...`) 노출 문제를 발견해 마스킹 처리.
 
-추천 작업:
-
-- `/legal-harness/mcp_servers/korean_law_mcp/README.md`를 추가합니다.
-- live CLI 호출이 확인되면 명령 계약을 문서에 반영합니다.
+남은 항목: `USER_TESTING.md` 기준 사람에 의한 UI 수동 검증 (`PROGRESS.md` 참고).
 
 ### `/legal-harness/mcp_servers/document_reader_mcp`
 

@@ -131,8 +131,11 @@ vitest run
 
 ## 현재 한계
 
-- 실제 `korean-law` CLI 호출은 `scripts/verify-korean-law-provider.mjs`로 live 통합 검증이 필요합니다.
-- 현재 환경에서 live 검증은 외부 API fetch 실패가 발생할 수 있으며, 이 경우 워크플로는 `검색 실패`, `수동 확인 필요`를 반환해야 합니다.
+- 실제 `korean-law` CLI 연동은 `LAW_OC` 키로 live 검증을 완료했습니다. CLI가 반환하는 사람이 읽는 텍스트를
+  구조화된 인용 데이터로 바꾸는 파서는 `src/services/koreanLawParser.service.ts`에 있으며, 실제 응답을
+  `src/services/fixtures/`에 고정해 회귀 테스트로 검증합니다. 자세한 CLI 계약은
+  `legal-harness/mcp_servers/korean_law_mcp/README.md`를 참고하세요.
+- 외부 API 호출이 실패하거나 `LAW_OC`가 없으면 워크플로는 중단되지 않고 `검색 실패`, `수동 확인 필요`를 반환합니다.
 - 프론트엔드는 최소 기능 UI에서 수동 API 호출을 수행하며, 자동 브라우저 e2e 테스트는 아직 없습니다.
 - 생성되는 문서 결과는 초안으로만 사용해야 하며 제출, 서명, 발송 전 전문가 검토가 필요합니다.
 

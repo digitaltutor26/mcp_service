@@ -33,7 +33,7 @@ export interface LegalWorkflowPolicy {
 export interface LegalLookupResult {
   readonly ok: boolean;
   readonly provider: "mock" | "korean-law";
-  readonly operation: "searchLaw" | "searchPrecedents" | "getLawArticle";
+  readonly operation: "searchLaw" | "searchPrecedents" | "getLawArticle" | "researchQuestion";
   readonly data: unknown | null;
   readonly message: string;
   readonly notices: readonly string[];
