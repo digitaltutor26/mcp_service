@@ -6,11 +6,28 @@ import type {
   DocumentDraftInput,
   LegalResearchInput,
 } from "../types/workflow.types.js";
+import {
+  asQueryEnvelope,
+  parseArticleText,
+  parseLawSearchText,
+  parsePrecedentSearchText,
+  parseResearchChainText,
+  redactApiKey,
+} from "./koreanLawParser.service.js";
 
 const execFileAsync = promisify(execFile);
 
 export type LegalProvider = "mock" | "korean-law";
-export type LegalLookupOperation = "searchLaw" | "searchPrecedents" | "getLawArticle";
+export type LegalLookupOperation =
+  | "searchLaw"
+  | "searchPrecedents"
+  | "getLawArticle"
+  | "researchQuestion";
+
+export interface AuthorityLookupPair {
+  readonly lawSearch: LegalLookupResult;
+  readonly precedentSearch: LegalLookupResult;
+}
 
 export interface LegalLookupResult<TData = unknown> {
   readonly ok: boolean;
@@ -36,6 +53,13 @@ export interface LegalSearchProvider {
   searchLaw(query: string): Promise<LegalLookupResult>;
   searchPrecedents(query: string): Promise<LegalLookupResult>;
   getLawArticle(lawName: string, articleNo: string): Promise<LegalLookupResult>;
+  /**
+   * 자연어 질문으로 법령/판례 근거를 함께 조회합니다.
+   *
+   * `search_law`는 법제처 API의 AND 키워드 검색이라 문장을 그대로 넘기면 항상 결과가 없습니다.
+   * 자연어 입력은 라우팅이 가능한 경로로 처리해야 실제 근거를 얻을 수 있습니다.
+   */
+  researchAuthorities(question: string): Promise<AuthorityLookupPair>;
 }
 
 export interface McpLegalService extends LegalSearchProvider {
@@ -62,7 +86,8 @@ function manualFailure(
     message: "검색 실패",
     notices: ["검색 실패", "수동 확인 필요"],
     manualReviewRequired: true,
-    error: error instanceof Error ? error.message : String(error),
+    // CLI stderr에는 인증키가 포함된 링크가 섞일 수 있어 그대로 노출하지 않습니다.
+    error: redactApiKey(error instanceof Error ? error.message : String(error)),
   };
 }
 
@@ -142,26 +167,145 @@ class MockLegalProvider implements LegalSearchProvider {
       text: "개발용 모의 조문입니다. 실제 조문은 한국 법령 검색 제공자 또는 법제처 원문으로 확인해야 합니다.",
     });
   }
+
+  async researchAuthorities(question: string): Promise<AuthorityLookupPair> {
+    const [lawSearch, precedentSearch] = await Promise.all([
+      this.searchLaw(question),
+      this.searchPrecedents(question),
+    ]);
+
+    return { lawSearch, precedentSearch };
+  }
+}
+
+const CLI_SUCCESS_NOTICE = "한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다.";
+
+function cliSuccess<TData>(operation: LegalLookupOperation, data: TData): LegalLookupResult<TData> {
+  return {
+    ok: true,
+    provider: "korean-law",
+    operation,
+    data,
+    message: "검색 완료",
+    notices: [CLI_SUCCESS_NOTICE],
+    manualReviewRequired: true,
+  };
+}
+
+function cliEmpty(operation: LegalLookupOperation, rawText: string): LegalLookupResult {
+  return {
+    ok: false,
+    provider: "korean-law",
+    operation,
+    data: { rawText },
+    message: "검색 실패",
+    notices: ["검색 실패", "수동 확인 필요"],
+    manualReviewRequired: true,
+  };
 }
 
 class KoreanLawCliProvider implements LegalSearchProvider {
   private readonly command = "korean-law";
 
   async searchLaw(query: string): Promise<LegalLookupResult> {
-    return this.callTool("searchLaw", ["search_law", "--query", query]);
+    return this.run("searchLaw", ["search_law", "--query", query], (stdout) => {
+      const entries = parseLawSearchText(stdout);
+      if (entries.length === 0) {
+        return cliEmpty("searchLaw", redactApiKey(stdout));
+      }
+
+      // 법령명 검색은 조문 단위 근거를 제공하지 않으므로 articleNo는 비워 둡니다.
+      // 인용 검증기는 이를 근거 부족으로 판단해야 정확합니다.
+      return cliSuccess("searchLaw", {
+        query,
+        results: entries.map((entry) => ({
+          lawName: entry.lawName,
+          lawId: entry.lawId,
+          mst: entry.mst,
+          promulgationDate: entry.promulgationDate,
+          lawType: entry.lawType,
+          matchType: entry.matchType,
+        })),
+      });
+    });
   }
 
   async searchPrecedents(query: string): Promise<LegalLookupResult> {
-    return this.callTool("searchPrecedents", ["search_precedents", "--query", query]);
+    return this.run("searchPrecedents", ["search_precedents", "--query", query], (stdout) => {
+      const entries = parsePrecedentSearchText(stdout);
+      if (entries.length === 0) {
+        return cliEmpty("searchPrecedents", redactApiKey(stdout));
+      }
+
+      return cliSuccess("searchPrecedents", { query, results: entries });
+    });
   }
 
   async getLawArticle(lawName: string, articleNo: string): Promise<LegalLookupResult> {
-    return this.callNaturalQuery("getLawArticle", `${lawName} ${articleNo}`);
+    const question = `${lawName} ${articleNo}`;
+
+    return this.run("getLawArticle", ["query", question, "--json"], (stdout) => {
+      const envelope = asQueryEnvelope(parseJson(stdout));
+      if (!envelope || envelope.isError === true) {
+        return cliEmpty("getLawArticle", redactApiKey(stdout));
+      }
+
+      const article = parseArticleText(envelope.pipelineResult ?? envelope.result ?? "");
+      if (!article?.articleNo) {
+        return cliEmpty("getLawArticle", redactApiKey(envelope.result ?? stdout));
+      }
+
+      return cliSuccess("getLawArticle", {
+        ...article,
+        routedTool: envelope.route?.tool,
+      });
+    });
   }
 
-  private async callTool(
+  async researchAuthorities(question: string): Promise<AuthorityLookupPair> {
+    const lookup = await this.run("researchQuestion", ["query", question, "--json"], (stdout) => {
+      const envelope = asQueryEnvelope(parseJson(stdout));
+      if (!envelope || envelope.isError === true) {
+        return cliEmpty("researchQuestion", redactApiKey(stdout));
+      }
+
+      const chain = parseResearchChainText(envelope.result ?? "");
+      const article = parseArticleText(envelope.pipelineResult ?? "");
+
+      // 질문이 특정 조문을 지목하면 파이프라인이 그 조문 전문을 함께 돌려줍니다.
+      const lawArticles = article?.articleNo && article.lawName
+        ? [
+            {
+              lawName: article.lawName,
+              articleNo: article.articleNo,
+              title: article.title,
+              text: article.text,
+              effectiveDate: article.effectiveDate,
+            },
+            ...chain.lawArticles,
+          ]
+        : chain.lawArticles;
+
+      if (lawArticles.length === 0 && chain.precedents.length === 0) {
+        return cliEmpty("researchQuestion", redactApiKey(envelope.result ?? stdout));
+      }
+
+      return cliSuccess("researchQuestion", {
+        question,
+        routedTool: envelope.route?.tool,
+        lawArticles,
+        precedents: chain.precedents,
+        failedSections: chain.failedSections,
+      });
+    });
+
+    return splitResearchLookup(lookup);
+  }
+
+  private async run(
     operation: LegalLookupOperation,
     args: readonly string[],
+    parse: (stdout: string) => LegalLookupResult,
   ): Promise<LegalLookupResult> {
     if (!process.env.LAW_OC) {
       return manualFailure("korean-law", operation, new Error("한국 법령 검색 제공자를 사용하려면 LAW_OC 환경변수가 필요합니다."));
@@ -182,80 +326,68 @@ class KoreanLawCliProvider implements LegalSearchProvider {
       );
 
       const trimmed = stdout.trim();
-      const data = trimmed.length > 0 ? parseCliOutput(trimmed) : null;
-      const ok = trimmed.length > 0 && !isCliError(data);
+      if (trimmed.length === 0) {
+        return cliEmpty(operation, "");
+      }
 
-      return {
-        ok,
-        provider: "korean-law",
-        operation,
-        data,
-        message: ok ? "검색 완료" : "검색 실패",
-        notices: ok
-          ? ["한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."]
-          : ["검색 실패", "수동 확인 필요"],
-        manualReviewRequired: true,
-      };
-    } catch (error) {
-      return manualFailure("korean-law", operation, error);
-    }
-  }
-
-  private async callNaturalQuery(operation: LegalLookupOperation, query: string): Promise<LegalLookupResult> {
-    if (!process.env.LAW_OC) {
-      return manualFailure("korean-law", operation, new Error("한국 법령 검색 제공자를 사용하려면 LAW_OC 환경변수가 필요합니다."));
-    }
-
-    try {
-      const { stdout } = await execFileAsync(
-        this.command,
-        ["query", query, "--json"],
-        {
-          env: {
-            ...process.env,
-            LAW_OC: process.env.LAW_OC,
-          },
-          timeout: 15_000,
-          maxBuffer: 1024 * 1024,
-        },
-      );
-
-      const trimmed = stdout.trim();
-      const data = trimmed.length > 0 ? parseCliOutput(trimmed) : null;
-      const ok = trimmed.length > 0 && !isCliError(data);
-
-      return {
-        ok,
-        provider: "korean-law",
-        operation,
-        data,
-        message: ok ? "검색 완료" : "검색 실패",
-        notices: ok
-          ? ["한국 법령 CLI 검색 결과입니다. 인용 전 원문 확인이 필요합니다."]
-          : ["검색 실패", "수동 확인 필요"],
-        manualReviewRequired: true,
-      };
+      return parse(trimmed);
     } catch (error) {
       return manualFailure("korean-law", operation, error);
     }
   }
 }
 
-function parseCliOutput(stdout: string): unknown {
+/**
+ * 자연어 조회는 CLI를 한 번만 호출하지만, 하위 계층은 법령/판례를 분리된 조회 결과로 다룹니다.
+ * 한 번의 결과를 두 슬롯으로 나눠 인용 추출 로직이 그대로 동작하게 합니다.
+ */
+function splitResearchLookup(lookup: LegalLookupResult): AuthorityLookupPair {
+  if (!lookup.ok) {
+    return {
+      lawSearch: { ...lookup, operation: "searchLaw" },
+      precedentSearch: { ...lookup, operation: "searchPrecedents" },
+    };
+  }
+
+  const data = lookup.data as {
+    readonly question?: string;
+    readonly lawArticles?: readonly unknown[];
+    readonly precedents?: readonly unknown[];
+    readonly failedSections?: readonly string[];
+  } | null;
+
+  const lawArticles = data?.lawArticles ?? [];
+  const precedents = data?.precedents ?? [];
+  const failureNotices = (data?.failedSections ?? []).map(
+    (section) => `${section} 조회 실패, 수동 확인 필요`,
+  );
+
+  const toResult = (
+    operation: LegalLookupOperation,
+    results: readonly unknown[],
+  ): LegalLookupResult =>
+    results.length === 0
+      ? {
+          ...cliEmpty(operation, ""),
+          notices: ["검색 실패", "수동 확인 필요", ...failureNotices],
+        }
+      : {
+          ...cliSuccess(operation, { query: data?.question, results }),
+          notices: [CLI_SUCCESS_NOTICE, ...failureNotices],
+        };
+
+  return {
+    lawSearch: toResult("searchLaw", lawArticles),
+    precedentSearch: toResult("searchPrecedents", precedents),
+  };
+}
+
+function parseJson(stdout: string): unknown {
   try {
     return JSON.parse(stdout);
   } catch {
-    return { raw: stdout };
+    return undefined;
   }
-}
-
-function isCliError(data: unknown): boolean {
-  return Boolean(
-    data &&
-    typeof data === "object" &&
-    "isError" in data &&
-    (data as { readonly isError?: unknown }).isError === true
-  );
 }
 
 function createProvider(provider: LegalProvider): LegalSearchProvider {
@@ -280,29 +412,27 @@ export function createMcpLegalService(provider: LegalProvider = getConfiguredPro
       return searchProvider.getLawArticle(lawName, articleNo);
     },
 
+    researchAuthorities(question: string) {
+      return searchProvider.researchAuthorities(question);
+    },
+
     async researchLegalAuthorities(request: LegalResearchInput): Promise<LegalAuthoritySearchResult> {
       const query = [request.question, request.facts, request.jurisdiction].filter(Boolean).join(" ");
-      const [lawSearch, precedentSearch] = await Promise.all([
-        searchProvider.searchLaw(query),
-        searchProvider.searchPrecedents(query),
-      ]);
+      const { lawSearch, precedentSearch } = await searchProvider.researchAuthorities(query);
 
       return mergeAuthorityResults(provider, { lawSearch, precedentSearch });
     },
 
     async reviewContractAuthorities(request: ContractReviewInput): Promise<LegalAuthoritySearchResult> {
       const query = [request.partyRole, request.concern, request.contractText.slice(0, 500)].filter(Boolean).join(" ");
-      const [lawSearch, precedentSearch] = await Promise.all([
-        searchProvider.searchLaw(query),
-        searchProvider.searchPrecedents(query),
-      ]);
+      const { lawSearch, precedentSearch } = await searchProvider.researchAuthorities(query);
 
       return mergeAuthorityResults(provider, { lawSearch, precedentSearch });
     },
 
     async draftDocumentAuthorities(request: DocumentDraftInput): Promise<LegalAuthoritySearchResult> {
       const query = [request.documentType, request.facts, request.requestedOutcome].filter(Boolean).join(" ");
-      const lawSearch = await searchProvider.searchLaw(query);
+      const { lawSearch } = await searchProvider.researchAuthorities(query);
 
       return mergeAuthorityResults(provider, { lawSearch });
     },

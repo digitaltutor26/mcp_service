@@ -15,6 +15,42 @@ describe("mcpLegalService providers", () => {
     expect(result.manualReviewRequired).toBe(true);
   });
 
+  it("returns both law and precedent lookups from researchAuthorities", async () => {
+    const service = createMcpLegalService("mock");
+
+    const { lawSearch, precedentSearch } = await service.researchAuthorities("용역대금 미지급");
+
+    expect(lawSearch.ok).toBe(true);
+    expect(lawSearch.operation).toBe("searchLaw");
+    expect(precedentSearch.ok).toBe(true);
+    expect(precedentSearch.operation).toBe("searchPrecedents");
+  });
+
+  it("degrades researchAuthorities to failure metadata when LAW_OC is missing", async () => {
+    const originalLawOc = process.env.LAW_OC;
+    delete process.env.LAW_OC;
+
+    try {
+      const service = createMcpLegalService("korean-law");
+      const { lawSearch, precedentSearch } = await service.researchAuthorities("용역대금 미지급");
+
+      for (const result of [lawSearch, precedentSearch]) {
+        expect(result.ok).toBe(false);
+        expect(result.notices).toContain("검색 실패");
+        expect(result.notices).toContain("수동 확인 필요");
+      }
+
+      expect(lawSearch.operation).toBe("searchLaw");
+      expect(precedentSearch.operation).toBe("searchPrecedents");
+    } finally {
+      if (originalLawOc === undefined) {
+        delete process.env.LAW_OC;
+      } else {
+        process.env.LAW_OC = originalLawOc;
+      }
+    }
+  });
+
   it("returns non-throwing failure metadata from korean-law provider when LAW_OC is missing", async () => {
     const originalLawOc = process.env.LAW_OC;
     delete process.env.LAW_OC;
