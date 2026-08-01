@@ -5,6 +5,33 @@
 
 ## 완료
 
+### codex_harness를 Claude Code CLI와 겸용 가능하게 확장 ✅ (2026-08-01)
+
+- **배경**: 앞으로 Claude Code로 작업하기로 하면서, Codex CLI 전용으로 만들어뒀던
+  `codex_harness/`(역할 기반 멀티 에이전트 하네스)를 계속 쓸 수 있는지 질문받음.
+  삭제할지, 교차 사용 가능하게 만들지 결정이 필요했음.
+- **조사**: `.agents/roles/*.md`, `.agents/workflows/*.md`, `project-checklist.md`,
+  `scripts/{test,review}.sh`를 전부 확인한 결과 특정 CLI에 종속된 부분은
+  `scripts/agent-runner.mjs`의 `spawnSync("codex", ["exec", ...])` 호출 하나뿐
+  이었음 — 나머지는 순수 마크다운 프롬프트/셸 스크립트라 그대로 재사용 가능.
+- **조치**: `agent-runner.mjs`가 `claude`/`codex` CLI를 자동 감지(`claude` 우선)
+  하거나 `--tool`로 명시 지정하도록 수정. Codex의 `--sandbox
+  read-only|workspace-write`를 Claude의 `--permission-mode`로 매핑
+  (read-only 역할 → `plan`, 나머지 → `bypassPermissions`) — 다만 이 둘은 격리
+  수준이 다른 별개 메커니즘이라는 점을 README에 명시. README/AGENTS.template.md/
+  USAGE.md 갱신, 이미 Claude Code+OMC 세션 안에서는 이 스크립트 대신 `Agent`
+  도구나 `/team`을 바로 쓸 수 있다는 점도 안내.
+- **부수 정리**: `codex_harness/reports/current-project-review.md`(2026-06-12자,
+  25개 테스트 시절 스냅샷 — 지금은 102개)는 이미 outdated된 실행 결과 리포트라
+  복원하지 않고 정식 삭제. `.gitignore`의 `.omc/`가 빠져있어(이번에 처음
+  `.omx/`를 오타로 오인해 지웠다가, 실제로는 2026-05-31자 세션 로그가 있는 별도
+  디렉토리임을 확인하고 되돌림) `.omx/`와 `.omc/` 둘 다 무시하도록 수정.
+- **검증**: `node --check`로 문법 확인, `--tool bogus`/미지원 workflow 인자
+  검증 경로를 직접 실행해 에러 처리 확인. 실제 `claude`/`codex` 서브프로세스를
+  띄우는 라이브 역할 실행은 이번 세션에서 검증하지 않음 — 다음 사용 시 라이브
+  확인 권장(`USAGE.md`에 기록). `npm test` 전체 재실행 — 14개 파일, 102 passed +
+  1 skipped, 프론트엔드 빌드 통과(회귀 없음).
+
 ### legal-harness/outputs 샘플 산출물 6개 작성 ✅ (2026-08-01)
 
 - **범위**: "사용자 결정 사항 #5" 결정(정적 예시만, 백엔드 파일 저장 기능 없음)에 따라
