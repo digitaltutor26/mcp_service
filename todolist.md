@@ -21,9 +21,10 @@
   - `src/services/citationVerifier.service.ts`
   - `src/services/legalWorkflow.service.ts`
 - 하네스 메타데이터
-  - `harness/workflows/*.json`
-  - `harness/policies/legal-service-policy.json`
-  - `harness/evals/general-legal-service.json`
+  - `src/harness.ts` — 워크플로/정책 정의의 단일 소스(정적 JSON 사본은 2026-08-01에 제거,
+    아래 "3순위" 참고)
+  - `harness/evals/general-legal-service.json`, `harness/evals/safety-and-citation.json`
+  - `legal-harness/evals/*.yaml`
 - React 최소 기능 UI
   - `web/src/App.tsx`
   - `web/src/App.css`
@@ -66,8 +67,10 @@
 
 현재 대응 구조:
 
-- `src/`는 실행 가능한 백엔드 코드를 포함합니다.
-- `harness/`는 JSON 워크플로, 정책, 평가 메타데이터를 포함합니다.
+- `src/`는 실행 가능한 백엔드 코드를 포함하며, `src/harness.ts`가 워크플로/정책 정의의
+  단일 소스입니다.
+- `harness/evals/`는 하네스 정의 자체를 검증하는 평가 시나리오 JSON을 포함합니다
+  (워크플로/정책 JSON 사본은 2026-08-01에 중복 제거, "3순위" 참고).
 
 결정 필요:
 
@@ -184,27 +187,20 @@
 
 ### `/legal-harness/evals/*.yaml`
 
-상태: 없음.
+상태: 완료 (2026-08-01).
 
 현재 대응 구조:
 
-- `harness/evals/general-legal-service.json`
-- Vitest 서비스/API 테스트
-  - 인용 검증 테스트
-  - 안전 필터 테스트
-  - MCP 제공자 테스트
-  - API 테스트
+- `legal-harness/evals/citation_required_tests.yaml`, `hallucination_tests.yaml`,
+  `outdated_law_tests.yaml` 3개 파일 작성 완료.
+- `src/harnessEval.test.ts`가 위 YAML을 읽어 실제 HTTP 엔드포인트를 호출하고
+  `must_include`/`must_not_include`/`fallback_must_include`를 검증. `vitest run`(=`npm test`)에
+  자동 포함됨.
+- `harness/evals/general-legal-service.json`, 기존 Vitest 서비스/API 테스트(인용 검증, 안전
+  필터, MCP 제공자, API)와 함께 유지.
 
-빠진 항목:
-
-- `citation_required_tests.yaml`
-- `hallucination_tests.yaml`
-- `outdated_law_tests.yaml`
-
-추천 작업:
-
-- YAML 평가 파일을 하네스 수준의 acceptance criteria로 추가합니다.
-- Vitest 테스트는 실행 가능한 단위/통합 테스트로 유지합니다.
+세부 내용은 `PROGRESS.md`의 "2순위 — YAML 평가 러너 연결" 항목 참고(실제 실행해서 발견한
+YAML 기대값과 실제 응답 간 불일치 3건과 수정 내역 포함).
 
 ### `/legal-harness/outputs/reports`
 

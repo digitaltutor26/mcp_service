@@ -1,7 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import './App.css'
 
-type TabId = 'legal-research' | 'contract-review' | 'document-draft'
+type TabId = 'legal-research' | 'contract-review' | 'document-draft' | 'litigation-prep'
 
 interface ReportPolicy {
   informationalOnly: boolean
@@ -36,6 +36,18 @@ interface CitationVerification {
   blocksDefinitiveAnalysis: boolean
 }
 
+interface LlmSynthesis {
+  used: boolean
+  answer?: string
+  citations?: { citedText: string; documentTitle: string | null }[]
+  groundingCheck?: {
+    hallucinationDetected: boolean
+    invalidCitations: string[]
+    uncertainCitations: string[]
+  }
+  notice: string
+}
+
 interface LegalReport {
   allowed: boolean
   reason?: string
@@ -44,12 +56,23 @@ interface LegalReport {
   nextSteps?: string[]
   reviewScope?: Record<string, string>
   draftScope?: Record<string, string>
+  classificationScope?: Record<string, string>
+  browseCatalog?: Record<string, string>
   mockResult?: Record<string, unknown>
   authoritySearch?: AuthoritySearch
   safetyReview?: SafetyReview
   citationVerification?: CitationVerification
+  llmSynthesis?: LlmSynthesis
   policy?: ReportPolicy
   expertReviewRequired?: boolean
+}
+
+interface ExtraField {
+  key: string
+  label: string
+  placeholder: string
+  required: boolean
+  fallback?: string
 }
 
 interface TabConfig {
@@ -58,7 +81,8 @@ interface TabConfig {
   endpoint: string
   placeholder: string
   buttonLabel: string
-  buildBody: (text: string) => Record<string, string>
+  extraFields?: ExtraField[]
+  buildBody: (text: string, extra: Record<string, string>) => Record<string, string>
 }
 
 const API_BASE = 'http://localhost:3000'
@@ -78,6 +102,10 @@ const fieldLabels: Record<string, string> = {
   documentType: '문서 유형',
   recipient: '수신인',
   requestedOutcome: '요청 결과',
+  requiredEvidence: '확보해야 할 증거',
+  requiredDocuments: '준비할 서류',
+  deadlinesAndLimitations: '기한/시효',
+  jurisdictionNotes: '관할 안내',
 }
 
 const tabs = [
@@ -95,10 +123,14 @@ const tabs = [
     endpoint: '/api/contract-review',
     placeholder: '검토할 계약 조항이나 계약서 본문을 붙여넣으세요. 예: 공급자가 언제든 해지할 수 있고 고객은 남은 대금을 모두 부담한다는 조항',
     buttonLabel: '계약서 검토 실행',
-    buildBody: (text: string) => ({
+    extraFields: [
+      { key: 'partyRole', label: '당사자 지위', placeholder: '예: 을, 공급자, 임차인', required: true, fallback: '검토 요청자' },
+      { key: 'concern', label: '검토 관심사항 (선택)', placeholder: '예: 일방적 해지 조항', required: false },
+    ],
+    buildBody: (text: string, extra: Record<string, string>) => ({
       contractText: text,
-      partyRole: '검토 요청자',
-      concern: '일반 위험 검토',
+      partyRole: extra.partyRole?.trim() || '검토 요청자',
+      ...(extra.concern?.trim() ? { concern: extra.concern.trim() } : {}),
     }),
   },
   {
@@ -107,11 +139,25 @@ const tabs = [
     endpoint: '/api/document-draft',
     placeholder: '작성할 문서의 목적과 사실관계를 입력하세요. 예: 미지급 용역대금 지급을 요청하는 내용증명 초안',
     buttonLabel: '문서 초안 생성',
-    buildBody: (text: string) => ({
-      documentType: '법률 문서 초안',
+    extraFields: [
+      { key: 'documentType', label: '문서 유형', placeholder: '예: 내용증명, 합의서 초안', required: true, fallback: '법률 문서 초안' },
+      { key: 'recipient', label: '수신인 (선택)', placeholder: '예: 계약 상대방', required: false },
+      { key: 'requestedOutcome', label: '요청 결과 (선택)', placeholder: '예: 대금 지급', required: false },
+    ],
+    buildBody: (text: string, extra: Record<string, string>) => ({
+      documentType: extra.documentType?.trim() || '법률 문서 초안',
       facts: text,
-      requestedOutcome: '초안 작성',
+      ...(extra.recipient?.trim() ? { recipient: extra.recipient.trim() } : {}),
+      requestedOutcome: extra.requestedOutcome?.trim() || '초안 작성',
     }),
+  },
+  {
+    id: 'litigation-prep',
+    label: '소송 준비',
+    endpoint: '/api/litigation-prep',
+    placeholder: '지금 겪고 있는 상황을 설명해 주세요. 예: 프리랜서로 일했는데 용역대금을 못 받았어요. / 형사/민사/가정법원 중 어디에 해당하는지 몰라도 괜찮습니다.',
+    buttonLabel: '준비 안내 받기',
+    buildBody: (text: string) => ({ situation: text }),
   },
 ] satisfies [TabConfig, ...TabConfig[]]
 
@@ -201,7 +247,9 @@ function ReportView({ activeTab, report }: { activeTab: TabConfig; report: Legal
           <p className="eyebrow">{activeTab.label} 리포트</p>
           <h2>{isDraft ? '초안 리포트' : '정보 제공 리포트'}</h2>
         </div>
-        <span className="status-pill">{formatProvider(report.authoritySearch?.provider)} 제공자</span>
+        {report.authoritySearch ? (
+          <span className="status-pill">{formatProvider(report.authoritySearch.provider)} 제공자</span>
+        ) : null}
       </div>
 
       <ExpertBadge report={report} />
@@ -213,6 +261,7 @@ function ReportView({ activeTab, report }: { activeTab: TabConfig; report: Legal
 
       {report.reviewScope ? <KeyValueSection title="검토 범위" values={report.reviewScope} /> : null}
       {report.draftScope ? <KeyValueSection title="초안 범위" values={report.draftScope} /> : null}
+      {report.classificationScope ? <KeyValueSection title="분류 결과" values={report.classificationScope} /> : null}
 
       {report.mockResult ? (
         <div className="report-section">
@@ -225,6 +274,30 @@ function ReportView({ activeTab, report }: { activeTab: TabConfig; report: Legal
               </div>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {report.browseCatalog ? <KeyValueSection title="직접 선택하기" values={report.browseCatalog} /> : null}
+
+      {report.llmSynthesis ? (
+        <div className={report.llmSynthesis.used ? 'report-section notice-section' : 'report-section'}>
+          <h3>AI 종합 답변 (실험적)</h3>
+          {report.llmSynthesis.used ? (
+            <>
+              <p>{report.llmSynthesis.answer}</p>
+              {report.llmSynthesis.citations?.length ? (
+                <ul>
+                  {report.llmSynthesis.citations.map((citation, index) => (
+                    <li key={index}>
+                      "{citation.citedText}" — {citation.documentTitle ?? '출처 미상'}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          ) : (
+            <p className="muted">{report.llmSynthesis.notice}</p>
+          )}
         </div>
       ) : null}
 
@@ -319,6 +392,13 @@ function App() {
     'legal-research': '',
     'contract-review': '',
     'document-draft': '',
+    'litigation-prep': '',
+  })
+  const [extraInputs, setExtraInputs] = useState<Record<TabId, Record<string, string>>>({
+    'legal-research': {},
+    'contract-review': {},
+    'document-draft': {},
+    'litigation-prep': {},
   })
   const [report, setReport] = useState<LegalReport | null>(null)
   const [loading, setLoading] = useState(false)
@@ -345,7 +425,7 @@ function App() {
       const response = await fetch(`${API_BASE}${activeTab.endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(activeTab.buildBody(text)),
+        body: JSON.stringify(activeTab.buildBody(text, extraInputs[activeTab.id])),
       })
       const data = (await response.json()) as LegalReport
 
@@ -396,6 +476,29 @@ function App() {
         <div className="work-grid">
           <section className="input-panel">
             <label htmlFor="workflow-input">{activeTab.label}</label>
+            {activeTab.extraFields?.length ? (
+              <div className="extra-fields">
+                {activeTab.extraFields.map((field: ExtraField) => (
+                  <label key={field.key} className="extra-field">
+                    <span>{field.label}</span>
+                    <input
+                      type="text"
+                      value={extraInputs[activeTab.id]?.[field.key] ?? ''}
+                      placeholder={field.placeholder}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        setExtraInputs((current: Record<TabId, Record<string, string>>) => ({
+                          ...current,
+                          [activeTab.id]: {
+                            ...current[activeTab.id],
+                            [field.key]: event.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
             <textarea
               id="workflow-input"
               value={activeInput}
@@ -410,14 +513,27 @@ function App() {
             <div className="input-actions">
               <span>{activeInput.trim().length}자</span>
               <button type="button" onClick={runWorkflow} disabled={loading}>
-                {loading ? '실행 중' : activeTab.buttonLabel}
+                {loading ? (
+                  <>
+                    <span className="spinner" aria-hidden="true" />
+                    실행 중
+                  </>
+                ) : (
+                  activeTab.buttonLabel
+                )}
               </button>
             </div>
             {error ? <p className="error-message">{error}</p> : null}
           </section>
 
           <section className="output-panel">
-            {report ? (
+            {loading ? (
+              <div className="empty-state loading-state" role="status" aria-live="polite">
+                <span className="spinner spinner-lg" aria-hidden="true" />
+                <h2>결과를 불러오는 중입니다</h2>
+                <p>한국 법령 검색 제공자 호출은 몇 초 정도 걸릴 수 있습니다.</p>
+              </div>
+            ) : report ? (
               <ReportView activeTab={activeTab} report={report} />
             ) : (
               <div className="empty-state">

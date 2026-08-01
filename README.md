@@ -9,10 +9,11 @@
 ## 주요 기능
 
 - Express 백엔드 API와 Zod 입력 검증
-- React 최소 기능 UI 3개 화면
+- React 최소 기능 UI 4개 화면
   - 법률 질문
   - 계약서 검토
   - 문서 초안
+  - 소송 준비 (형사/민사/가정법원 체크리스트, 키워드 기반 분야 자동 안내)
 - 개발용 규칙 기반 모의 워크플로
 - 법령 검색 제공자 계층
   - `mock`
@@ -25,12 +26,27 @@
 ## 저장소 구조
 
 ```text
-src/        Express 백엔드, 워크플로, 서비스, 타입
-harness/    JSON 기반 워크플로, 정책, 평가 메타데이터
-web/        React 최소 기능 UI
+src/            Express 백엔드, 워크플로, 서비스, 타입
+harness/evals/  npm run eval이 실행하는 시나리오 JSON (하네스 정의 텍스트 검증용)
+legal-harness/  실제 HTTP 엔드포인트를 호출하는 vitest 평가(evals/*.yaml)와 MCP 서버 문서
+web/            React 최소 기능 UI
 ```
 
-초기 구상인 `/legal-harness` 산출물 구조는 아직 완전히 생성되어 있지 않습니다. 빠진 항목과 다음 작업 계획은 `todolist.md`를 참고하세요.
+워크플로/정책 정의는 `src/harness.ts` 하나가 단일 소스입니다. 과거에 있던 `harness/policies/`,
+`harness/workflows/`의 JSON 사본은 아무 코드에서도 읽지 않는 죽은 중복이라 제거했습니다
+(2026-08-01, `PROGRESS.md`의 "3순위 — harness 디렉토리 정리" 참고).
+
+두 곳의 `evals`는 서로 다른 것을 검증하므로 이름이 비슷하다고 통합하지 않았습니다.
+
+- `harness/evals/*.json` — `npm run eval`이 하네스 정의(`src/harness.ts`) 자체가 필요한
+  텍스트를 포함하는지 확인하는 정적 형태 검사.
+- `legal-harness/evals/*.yaml` — `vitest run`에 포함된 `src/harnessEval.test.ts`가 실제
+  `/api/legal-research` 등 엔드포인트를 호출해 응답에 필요한 문구가 있는지 확인하는
+  런타임 동작 검사.
+
+초기 구상인 `/legal-harness` 산출물 구조(`prompts/`, `outputs/{reports,checklists,drafts}/`)는
+빈 폴더로만 존재하며 아직 콘텐츠가 없습니다. 빠진 항목과 다음 작업 계획은 `todolist.md`를
+참고하세요.
 
 ## 백엔드 실행
 
@@ -54,6 +70,8 @@ GET  /health
 POST /api/legal-research
 POST /api/contract-review
 POST /api/document-draft
+GET  /api/litigation-prep/catalog
+POST /api/litigation-prep
 ```
 
 요청 예시:
@@ -63,6 +81,20 @@ curl -X POST http://localhost:3000/api/legal-research \
   -H "Content-Type: application/json" \
   -d '{"question":"프리랜서 용역대금을 지급받지 못한 경우 검토할 수 있는 민사 조치를 알려주세요."}'
 ```
+
+`소송 준비` — 형사/민사/가정법원 사건 유형별 준비 체크리스트를 규칙 기반(LLM 미사용)으로 제공합니다.
+입력 문장의 키워드로 사건 유형을 먼저, 그다음 분야만이라도 매칭을 시도하고, 매칭되지 않으면 추측하지
+않고 전체 카탈로그를 보여줘 사용자가 직접 고를 수 있게 합니다.
+
+```bash
+curl -X POST http://localhost:3000/api/litigation-prep \
+  -H "Content-Type: application/json" \
+  -d '{"situation":"프리랜서로 일했는데 3개월째 용역대금을 못 받았어요."}'
+```
+
+콘텐츠는 `src/services/litigationChecklistCatalog.service.ts`에 큐레이션되어 있으며, 현재는 분야당
+1개(대금/용역비 미지급, 고소장 제출 준비, 이혼 소송 준비)로 시작해 확장 가능한 구조입니다. "승소 예측"이
+아닌 "정보 수집·서류 준비 안내"에 한정되도록 설계했습니다.
 
 ## 프론트엔드 실행
 
@@ -106,6 +138,27 @@ LEGAL_PROVIDER=korean-law korean-law CLI를 child_process로 호출합니다.
 검색 실패
 수동 확인 필요
 ```
+
+### LLM 종합 답변 (선택, opt-in)
+
+`법률 질문` 워크플로는 검색된 법령 원문을 근거로 LLM이 답변을 종합하는 기능을 추가로
+제공합니다. 기본값은 비활성화이며, 켜지 않으면 기존 규칙 기반 결과만 표시됩니다.
+
+```bash
+LLM_SYNTHESIS_ENABLED=true
+ANTHROPIC_API_KEY=<Anthropic API 키>
+```
+
+환각 방지를 위해 이중 안전장치를 사용합니다.
+
+1. **Anthropic Citations API** — 검색된 법령 원문을 문서로 전달해, 답변 생성 자체를
+   해당 문서의 특정 구절에 근거하도록 강제합니다.
+2. **`korean-law` CLI의 `verify_citations`** — 생성된 답변에서 인용을 추출해 법제처
+   원문 DB와 직접 재대조합니다. 검증되지 않은 인용이 발견되면 답변 전체를 표시하지
+   않고 규칙 기반 결과로 폴백합니다.
+
+`ANTHROPIC_API_KEY`가 없거나 `LLM_SYNTHESIS_ENABLED`가 꺼져 있으면 항상 안전하게
+비활성 상태로 동작하며, 이유가 응답의 `llmSynthesis.notice`에 명시됩니다.
 
 ## 테스트
 
