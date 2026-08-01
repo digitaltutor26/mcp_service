@@ -5,6 +5,78 @@
 
 ## 완료
 
+### 3순위 — harness 디렉토리 정리 ✅ (2026-08-01)
+
+- **조사**: `harness/policies/legal-service-policy.json`, `harness/workflows/*.json`(3개)이
+  `src/harness.ts`와 같은 정책/워크플로 내용을 다른 스키마(snake_case, 더 납작한 구조)로
+  중복 보관 중이었음. `grep`으로 `src/`, `web/` 전체를 확인한 결과 이 4개 파일을 읽는 코드가
+  전혀 없음을 확인 — 완전히 죽은 중복이었고, 이미 문구가 미묘하게 어긋나 있었음(예:
+  disclaimers 문구가 한 글자씩 다름). 반면 `harness/evals/*.json`(2개)은 `src/evaluate.ts`
+  (`npm run eval`)가 실제로 읽어 하네스 정의 텍스트를 검증하는 데 쓰이고 있어 살아있는
+  코드로 확인, 그대로 유지.
+- **조치**: 죽은 4개 파일(`harness/policies/legal-service-policy.json`,
+  `harness/workflows/{contract-review,document-drafting,legal-research}.json`)과 빈
+  디렉토리를 삭제. `src/harness.ts`가 워크플로/정책 정의의 단일 소스임을 `README.md`,
+  `todolist.md`에 명시.
+- **추가로 명확히 한 것**: `harness/evals/*.json`(하네스 정의 자체의 텍스트 검사, `npm run
+  eval`)과 `legal-harness/evals/*.yaml`(실제 API 응답의 런타임 동작 검사,
+  `src/harnessEval.test.ts`)은 이름이 비슷해 헷갈리기 쉽지만 서로 다른 것을 검증하는
+  별개의 장치라 통합하지 않고 README에 차이를 문서화.
+- **손대지 않은 것**: `legal-harness/prompts/`, `legal-harness/outputs/{reports,checklists,drafts}/`는
+  여전히 빈 폴더(git에 트래킹되지 않는 로컬 디렉토리). 콘텐츠를 채우는 건 `todolist.md`의
+  "사용자 결정 필요 사항 #5"(정적 예시만 둘지, 백엔드가 실제로 파일 저장까지 할지)가 먼저
+  정해져야 하는 별도 작업이라 이번 정리 범위에서 제외.
+- **검증**: 파일 삭제 후 `npm test` 재실행 — 14개 테스트 파일, 102 passed + 1 skipped,
+  백엔드/프론트엔드 빌드 모두 그대로 통과(회귀 없음, 삭제한 파일이 실제로 미사용이었음을
+  재확인).
+
+### 2순위 — YAML 평가 러너 연결 ✅ (2026-08-01)
+
+- **배경**: `legal-harness/evals/*.yaml` 3개 파일이 작성되어 있었지만 실제로 실행하는
+  코드가 없어 죽은 문서였음. Anthropic API 유료 결제 전환은 보류하고(별도
+  `LLM_LAUNCH_CHECKLIST.md`로 정리), 키 없이도 할 수 있는 다음 순위 작업으로 착수.
+- **구현**: `src/harnessEval.test.ts` — YAML을 읽어 각 케이스를 실제 HTTP 엔드포인트
+  (`/api/legal-research`, `/api/contract-review`, `/api/document-draft`)로 호출하고
+  `must_include`/`must_not_include`/`fallback_must_include`를 응답 JSON 문자열 대조로
+  검증하는 vitest 러너. YAML 파싱은 `yaml` 패키지 신규 추가(devDependency). `vitest run`에
+  자동 포함되어 `npm test`로 실행됨(별도 스크립트 불필요).
+- **YAML을 실제로 실행해서 발견한 3가지 불일치** (추측이 아니라 실제 응답을 찍어보고 확인):
+  1. `contract-review-citation-gap`의 must_include `"인용 검증"`은 `harness.ts`의 정적
+     워크플로 메타데이터(예시 출력 설명)에만 존재하고 실제 `/api/contract-review` 응답에는
+     전혀 나타나지 않음 — 제거하고 실제로 나타나는 `"근거가 부족한 단정적 분석은
+     제한됩니다."`로 교체.
+  2. `no-definitive-illegality`의 must_include `"위법 소지가 있어 추가 검토가 필요"`는
+     `safetyFilter.service.ts`가 계산하는 치환 텍스트인데, `workflowCompliance.service.ts`가
+     이 치환된 텍스트 자체를 응답에 실어 보내지 않고 boolean 플래그(`expertReviewRequired`)와
+     경고 문구만 넘김 — 실제로 노출되는 `"위험 표현이 감지되어 전문가 검토가 필요합니다."`로
+     교체.
+  3. 같은 케이스에서 `must_not_include: "100% 위법"`도 처음엔 실패했음 —
+     `authoritySearch.lawSearch.data.query`(검색에 사용한 쿼리를 그대로 에코)와
+     `safetyReview.detections[].phrase`(안전 필터가 무엇을 감지했는지 투명하게 보여주는
+     진단 정보)에 사용자가 입력한 "100% 위법"이 원문 그대로 나타남. 이건 시스템이 그 문구를
+     자기 주장으로 채택한 게 아니라 "이걸 감지해서 플래그를 걸었다"는 진단 echo라 오탐으로
+     판단 — 러너에서 `must_not_include` 검사 시 이 두 필드를 제외하도록 수정(진단/메타데이터
+     echo와 시스템이 실제로 생성한 결론 텍스트를 구분).
+  - `provider-live-check` 케이스는 `LEGAL_PROVIDER=korean-law`가 아닌 환경(기본 mock 모드,
+    CI 포함)에서는 참/거짓을 판정할 근거가 없어 `it.skipIf`로 정직하게 건너뜀(가짜로
+    통과시키지 않음).
+- **검증**: `npm test` 전체 통과 — 14개 테스트 파일, 102 passed + 1 skipped(기존 94 + 신규
+  9, provider-live-check만 스킵). 백엔드 `tsc --noEmit`, `src/evaluate.ts` 하네스 자체 평가,
+  프론트엔드 빌드 모두 통과.
+
+### Anthropic API 결제 전환 여부 검토 — OpenRouter 대안 기각, 체크리스트 문서화 ✅ (2026-08-01)
+
+- **배경**: 사용자가 보유한 OpenRouter 크레딧으로 LLM 종합 답변 기능을 운영할 수 있는지 문의.
+- **조사**: OpenRouter 공식 문서 확인 결과 (1) OpenAI 호환 Chat Completions 형식만 지원,
+  Anthropic 네이티브 Citations API(1차 안전장치)는 미지원. (2) 토큰당 가격은 Anthropic 직접과
+  동일(마크업 없음), 크레딧 충전 시에만 5~5.5% 수수료. (3) OpenRouter 크레딧을 Anthropic
+  Console 계정에 이전하거나 그쪽 결제에 쓰는 방법은 없음(완전히 별개 회사/지갑).
+- **결정**: 비용 차이가 미미한 반면 Citations API 손실은 실질적 품질 저하(2차 검증
+  `verify_citations`에서 걸러지는 빈도 증가 → LLM 종합 답변을 실제로 받는 비율 감소)로 판단해
+  Anthropic 직접 결제 유지로 결정. 실제 결제 전환 시 필요한 작업은 `LLM_LAUNCH_CHECKLIST.md`에
+  체크리스트로 정리(Console 결제 설정, 시크릿 관리, 라이브 종단 검증, 비용 모니터링 등).
+- **상태**: 결제는 보류, 코드 변경 없음. 문서만 추가.
+
 ### LLM 종합 답변(opt-in) — Citations API + 이중 인용 검증 ✅ (2026-08-01)
 
 - **배경**: "여전히 형식적인 대답만 나온다"는 지적 — 원인은 파이프라인에 LLM이 아예
@@ -186,22 +258,13 @@
 
 ## 다음 순위 (미착수)
 
-### 2순위 — YAML 평가 러너 연결
+### 4순위 — LLM 도입 여부 결정 (일부 진행, 실제 결제는 보류)
 
-- `legal-harness/evals/*.yaml` 3개 파일이 작성되어 있으나 코드에서 실행되지 않음.
-- 계획: YAML을 읽어 워크플로를 실제 호출하고 `must_include`/`must_not_include`를
-  검증하는 러너를 만들어 `npm test`에 연결.
-
-### 3순위 — harness 디렉토리 정리
-
-- `harness/*.json`(6개 파일)과 `src/harness.ts`가 같은 내용을 이중 관리 중.
-- `legal-harness/prompts/`, `legal-harness/outputs/{reports,checklists,drafts}/`는
-  빈 폴더로 남아 있음.
-
-### 4순위 — LLM 도입 여부 결정 (사용자 판단 필요)
-
-- 현재 "워크플로"는 키워드 매칭(`legalWorkflow.service.ts`)이며 실제 LLM 호출이
-  전혀 없음. `package.json`에 anthropic/openai 등 의존성 없음.
+- `legal_research` 워크플로에는 opt-in LLM 종합 답변이 구현됨(위 "LLM 종합 답변" 항목
+  참고, `@anthropic-ai/sdk` 의존성 추가됨). 단 `ANTHROPIC_API_KEY`가 없어 기본값은 항상
+  비활성 — 실제 결제 전환 시 필요한 작업은 `LLM_LAUNCH_CHECKLIST.md` 참고.
+- `contract_review`, `document_drafting`, `litigation_prep`은 여전히 키워드 매칭
+  (`legalWorkflow.service.ts`)뿐이며 LLM 호출 없음 — 확장 여부는 미결정.
 - `analyze_document`, `chain_document_review` 등 계약서 검토에 적합한 korean-law
   CLI 도구(80개 이상 도구 중)가 아직 활용되지 않음.
 

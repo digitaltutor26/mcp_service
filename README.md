@@ -26,12 +26,27 @@
 ## 저장소 구조
 
 ```text
-src/        Express 백엔드, 워크플로, 서비스, 타입
-harness/    JSON 기반 워크플로, 정책, 평가 메타데이터
-web/        React 최소 기능 UI
+src/            Express 백엔드, 워크플로, 서비스, 타입
+harness/evals/  npm run eval이 실행하는 시나리오 JSON (하네스 정의 텍스트 검증용)
+legal-harness/  실제 HTTP 엔드포인트를 호출하는 vitest 평가(evals/*.yaml)와 MCP 서버 문서
+web/            React 최소 기능 UI
 ```
 
-초기 구상인 `/legal-harness` 산출물 구조는 아직 완전히 생성되어 있지 않습니다. 빠진 항목과 다음 작업 계획은 `todolist.md`를 참고하세요.
+워크플로/정책 정의는 `src/harness.ts` 하나가 단일 소스입니다. 과거에 있던 `harness/policies/`,
+`harness/workflows/`의 JSON 사본은 아무 코드에서도 읽지 않는 죽은 중복이라 제거했습니다
+(2026-08-01, `PROGRESS.md`의 "3순위 — harness 디렉토리 정리" 참고).
+
+두 곳의 `evals`는 서로 다른 것을 검증하므로 이름이 비슷하다고 통합하지 않았습니다.
+
+- `harness/evals/*.json` — `npm run eval`이 하네스 정의(`src/harness.ts`) 자체가 필요한
+  텍스트를 포함하는지 확인하는 정적 형태 검사.
+- `legal-harness/evals/*.yaml` — `vitest run`에 포함된 `src/harnessEval.test.ts`가 실제
+  `/api/legal-research` 등 엔드포인트를 호출해 응답에 필요한 문구가 있는지 확인하는
+  런타임 동작 검사.
+
+초기 구상인 `/legal-harness` 산출물 구조(`prompts/`, `outputs/{reports,checklists,drafts}/`)는
+빈 폴더로만 존재하며 아직 콘텐츠가 없습니다. 빠진 항목과 다음 작업 계획은 `todolist.md`를
+참고하세요.
 
 ## 백엔드 실행
 
